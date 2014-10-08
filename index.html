@@ -1,0 +1,3211 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>Map Viewer</title>
+
+        <!--CSS-->
+        <!-- <link rel="stylesheet" type="text/css" href="css/style.css"/> -->
+
+        <!-- JS -->
+        <script type="text/javascript">
+/**
+ * Copyright (c) 2014 by Center Open Middleware. All Rights Reserved.
+ * Titanium Appcelerator 3.2.0GA
+ * Licensed under the terms of the Apache Public License
+ * Please see the LICENSE included with this distribution for details.
+ *
+ */
+
+(function () {
+
+    "use strict";
+
+    var eventHandlers = {};
+    var methodHandlers = {};
+    var appleOS;
+    var id;
+    var prefs = null;
+    var inputs = {};
+    var callCounter = 0;
+
+    var _genericMethodHandler = function _genericMethodHandler(callback, methName, params, options, isAsync) {
+        var methodInfo, data;
+
+        if (methodHandlers[methName] == null) {
+            methodHandlers[methName] = {};
+        }
+
+        callCounter = callCounter + 1;
+        methodHandlers[methName][callCounter] = callback;
+
+        methodInfo = methName.split('.');
+
+        Ti.API.info('[APIBridge] Adding method listener: ' + methName + '_' + id + '_' + callCounter);
+        Ti.App.addEventListener(methName + '_' + id + '_' + callCounter, _sendMethodResult.bind(this, methName, callCounter));
+
+        data = {
+        'method': {
+            type: methodInfo[1],
+            subapi: methodInfo[2],
+            name: methodInfo[3],
+            eventName: methName
+        },
+        'params': params,
+        'options': options,
+        'viewId': id,
+        'callId': callCounter
+        };
+
+        if (!isAsync) {
+            Ti.API.info('[APIBridge] Fire Event "APIMethod". data: ' + JSON.stringify(data));
+            Ti.App.fireEvent('APIMethod', data);
+        } else {
+            Ti.API.info('[APIBridge] Fire Event "APIMethodAsync". data: ' + JSON.stringify(data));
+            Ti.App.fireEvent('APIMethodAsync', data);
+        }
+    };
+
+    var _sendMethodResult = function (methName, callCounter, data) {
+        Ti.API.info('++++++++++++[APIBridge]+++++++++++++ HTML!!!');
+        Ti.API.info('[APIBridge] Method result recived: ' + JSON.stringify(data.returnedData));
+        //Ti.API.info('parseados?: ' + JSON.parse(data));
+        if (methodHandlers[methName] == null || methodHandlers[methName][callCounter] == null) {
+            // TODO Error. Callback not found
+            Ti.API.info('[APIBridge] error in _sendMethodResult Callback not found');
+        } else {
+            // This solve iOs problem and i dont know why this run in Android without this fixed
+            if (data.returnedData === undefined) {
+                data.returnedData = null;
+            }
+            // Execute callback
+            Ti.API.info('[APIBridge] invocando callback html...');
+            methodHandlers[methName][callCounter](data.returnedData);
+        }
+    };
+
+    // APIBridge definition
+    Object.defineProperty(window, 'API', {value: {
+                SW : {
+                    Contacts : {
+                        /** Get Authorization Property
+                          * Condition AUTHORIZATION_UNKNOWN -> RequestAuthorization
+                          * @param {function} Callback
+                          * @return : AUTHORIZATION_AUTHORIZED or AUTHORIZATION_RESTRICTED */
+                        getAuthorization: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.SW.Contacts.getAuthorization', [], null, true);
+                        },
+                        /** Get Contact List
+                            * @param {function} Callback
+                            * @param {Object} {'name': String} optional
+                            * @return [contact] */
+                        getContactList: function(callback, options) {
+                            if (!(options instanceof Object) || options.value == null) {
+                                options = null;
+                            }
+                            _genericMethodHandler.call(this, callback, 'API.SW.Contacts.getContactList', [], options);
+                        },
+                         /** Create Contact
+                          * @param {function} Callback
+                          * @param {Object}
+                          * @return {Object} */
+                        createContact: function(callback, options) {
+                            if (!(options instanceof Object)) {
+                                options = null;
+                            }
+                            _genericMethodHandler.call(this, callback, 'API.SW.Contacts.createContact', [], options);
+                        },
+                        /** Save Changes
+                          * @param {function} Callback  */
+                        saveChanges: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.SW.Contacts.saveChanges');
+                        },
+                        /** Revert Changes from last save
+                          * @param {function} Callback  */
+                        revertChanges: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.SW.Contacts.revertChanges');
+                        },
+                        /** Delete Contact
+                          * @param {function} Callback
+                          * @param {String} Contact Name
+                          * @return {Number} */
+                        deleteContact: function(callback, contactName) {
+                            if (typeof contactName === "string") {
+                                _genericMethodHandler.call(this, callback, 'API.SW.Contacts.deleteContact', [contactName]);
+                            }
+                        },
+                    },
+                    Calendar : {
+
+                    },
+                    FileSystem : {
+
+                    },
+                    DataBase : {
+
+                    },
+                    Log : {
+
+                    },
+                    Map : 
+					(function () {
+	
+					"use strict";
+					
+					var Map = function Map(){
+												
+						var _allowedEventsData = {
+							"map": {
+								"click": {
+									"asIs": ["clicksource", "latitude", "longitude", "subtitle", "title"],
+									"id": ["annotation"]
+								}, 
+								"complete": {
+									"asIs": [],
+									"id": []
+								},
+								"longclick": {
+									"asIs": ["latitude", "longitude"],
+									"id": []
+								},
+								"regionchanged": {
+									"asIs": ["animated", "latitude", "latitudeDelta", "longitude", "longitudeDelta"],
+									"id": []
+								},
+								"postlayout": {
+									"asIs": [],
+									"id": []
+								}
+							},
+							"polygon": {
+								"click": {
+									"asIs": ["latitude", "longitude", "type"],
+									"id": ["source"]
+								}
+							},
+							"annotation": {
+								"click": {
+									"asIs": ["latitude", "longitude", "type", "clicksource"],
+									"id": ["source"]
+								}
+							}
+						};
+						
+						/*
+						 * CONSTANTS
+						 */
+						this.PRIORITY_BALANCED_POWER_ACCURACY = 102;
+						this.PRIORITY_HIGH_ACCURACY = 100;
+						this.PRIORITY_LOW_POWER = 104;
+						this.PRIORITY_NO_POWER = 105;
+						this.PRIORITY_UNDEFINED = -1;
+						
+						this.NORMAL_TYPE = 1;
+						this.TERRAIN_TYPE = 3;
+						this.SATELLITE_TYPE = 2;
+						this.HYBRID_TYPE = 4;
+						
+						this.ANNOTATION_AZURE = 210.0;
+						this.ANNOTATION_BLUE = 240.0;
+						this.ANNOTATION_CYAN = 180.0;
+						this.ANNOTATION_GREEN = 120.0;
+						this.ANNOTATION_MAGENTA = 300.0;
+						this.ANNOTATION_ORANGE = 30.0;
+						this.ANNOTATION_RED = 0.0;
+						this.ANNOTATION_ROSE = 330.0;
+						this.ANNOTATION_VIOLET = 270.0;
+						this.ANNOTATION_YELLOW = 60.0;
+						
+						this.LAYER_TYPE_WMS_1_1_1 = 1;
+						this.LAYER_TYPE_WMS_1_3_0 = 2;
+						this.FORMAT_PNG = 1;
+						this.FORMAT_JPEG = 2;
+						
+						/**
+						 * Check if there is support for the map.
+						 * @param {callback} Function that receives a boolean. True if the map can be used.	
+						 */
+						this.isMapAvailable = function(callback){
+							_genericMethodHandler.call(this, callback, 'API.SW.Map.isMapAvailable', [], null);
+						};
+						
+						/**
+						 * Creates a new map view.
+						 * @param {Object} options. See http://docs.appcelerator.com/titanium/3.0/#!/api/Modules.Map.View
+						 * @param {callback} Function that receives a MapView object. 	
+						 */
+						this.createMap = function(options, callback){
+							var handleCreateMap = function(callback, mapId){
+								callback(new MapView(mapId));
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleCreateMap, 'API.SW.Map.createMap', [], options);
+						};
+						
+						
+						/**
+						 * Creates an Annotation. 
+						 * @param {Object} Options. See http://docs.appcelerator.com/titanium/3.0/#!/api/Modules.Map.Annotation
+						 * @param {callback} Function that receives a Annotation object. 	
+						 */
+						this.createAnnotation = function(options, callback){
+							var handleCreateAnnotation = function(callback, annotationId){
+								if(annotationId != null)
+									callback(new Annotation(annotationId));
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleCreateAnnotation, 'API.SW.Map.createAnnotation', [], options);
+						};
+						
+						
+						/**
+						 * Creates a Route. 
+						 * @param {Object} Options. See http://docs.appcelerator.com/titanium/3.0/#!/api/Modules.Map.Route
+						 * @param {callback} Function that receives a Route object. 	
+						 */
+						this.createRoute = function(options, callback){
+							var handleCreateRoute = function(callback, routeId){
+								if(routeId != null)
+									callback(new Route(routeId));
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleCreateRoute, 'API.SW.Map.createRoute', [], options);
+						};
+						
+						
+						/**
+						 * Creates a Layer.
+						 * @param {options} 
+						 * 		- baseUrl: String with the url of the service
+						 * 		- type: Type of service (Map.LAYER_TYPE_WMS_1_1_1 | Map.LAYER_TYPE_WMS_1_3_0)
+						 * 		- name: String with the name of the layer.
+						 * 		- srs: String with the srs of the layer.
+						 * 		- visible: Boolean 
+						 * 		- zIndex: Number ZIndex of the layer.
+						 * 		- opacity: Number Percentage of opacity [0 - 100].
+						 * 		- format: Tipe of image of the tiles (Map.FORMAT_PNG | Map.FORMAT_JPEG)
+						 * @param {callback} Function that receives a Layer object. 
+						 */
+						this.createLayer = function(options, callback){
+							var handleCreateLayer = function(callback, layerId){
+								if(layerId != null)
+									callback(new Layer(layerId));
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleCreateLayer, 'API.SW.Map.createLayer', [], options);
+						};
+						
+						
+						/**
+						 * Creates a Polygon. 
+						 * @param {options} 
+						 * 		- points: Array of points ({latitude: Number, longitude: Number})
+						 * 		- holePoints: Array with holes. A hole is an array of points.
+						 * 		- fillColor: Color
+						 * 		- strokeColor: Color
+						 * 		- strokeWidth: Number
+						 * 		- annotation: Object (same properties of the createAnnotation method)
+						 * @param {callback} Function that receives a Polygon object. 		
+						 */
+						this.createPolygon = function(options, callback){
+							var handleCreatePolygon = function(callback, polygonId){
+								if(polygonId != null)
+									callback(new Polygon(polygonId));
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleCreatePolygon, 'API.SW.Map.createPolygon', [], options);
+						};
+						
+						
+						/**
+						 * Parses a given KML string  and returns an object with the polygons and routes of the file.
+						 * @param {String} Data. The KML string to parse
+						 * @param {callback} Called when the object with the results is ready and has it as argument.
+						 * @return {Object}. Object with the format {polygons: array, routes: array}. Null if there was an exception while parsing the KML string .
+						 */
+						this.getShapesFromKml = function(data, callback){
+							var handleGetShapes = function(callback, shapes){
+								callback(shapes);
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleGetShapes, 'API.SW.Map.getShapesFromKml', [data], null);
+						};
+						
+						
+						/**
+						 * Parses a given WKT string  and returns an object with the polygons and routes.
+						 * @param {data} The WKT string to parse
+						 * @param {callback} Called when the object with the results is ready and has it as argument.
+						 * @return {Object}. Object with the format {polygons: array, routes: array}. Null if there was an exception while parsing the WKT string .
+						 */
+						this.getShapesFromWkt = function(data, callback){
+							var handleGetShapes = function(callback, shapes){
+								callback(shapes);
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleGetShapes, 'API.SW.Map.getShapesFromWkt', [data], null);
+						};
+						
+						
+						/**
+						 * Parses a given GeoJson string  and returns an object with the polygons and routes of the file.
+						 * @param {data} The GeoJson string to parse
+						 * @param {callback} Called when the object with the results is ready and has it as argument.
+						 * @return {Object}. Object with the format {polygons: array, routes: array}. Null if there was an exception while parsing the GeoJson string .
+						 */
+						this.getShapesFromGeoJson = function(data, callback){
+							var handleGetShapes = function(callback, shapes){
+								callback(shapes);
+							}.bind(null, callback);
+							_genericMethodHandler.call(this, handleGetShapes, 'API.SW.Map.getShapesFromGeoJson', [data], null);
+						};
+						
+						
+						
+						var voidCallback = function(){ /*This callback is void*/};
+						var events = {};
+						
+						//Create the event listener
+						Ti.App.addEventListener("API_MAP_EVENT", function(eventInfo){
+							
+							var event = eventInfo.event;
+							var elementId = eventInfo.elementId;
+							var data = eventInfo.data;
+							var elementType = eventInfo.elementType;
+							
+							if(events[elementType] != null && events[elementType][event] != null && events[elementType][event][elementId] != null){
+								for(var index in events[elementType][event][elementId]){
+									events[elementType][event][elementId][index](_filterEventData(elementType, event, data));
+								}
+							}
+							
+						});
+						
+						var _filterEventData = function(elementType, event, data){
+							var newData = {};
+							if(_allowedEventsData[elementType] != null && _allowedEventsData[elementType][event] != null){
+								var asIs = _allowedEventsData[elementType][event]["asIs"];
+								var id = _allowedEventsData[elementType][event]["id"];
+								if(asIs != null){
+									for(var x = 0; x < asIs.length; x++){
+										var propertyType = asIs[x];
+										newData[propertyType] = data[propertyType];
+									}
+								}
+								if(id != null){
+									for(var x = 0; x < id.length; x++){
+										var propertyType = id[x];
+										if(data[propertyType] != null){
+											newData[propertyType] = _convertToElement(data[propertyType], elementType);
+										}
+											
+									}
+								}
+							}
+							
+							return newData;
+							
+						};
+						
+						var _registerEventHandler = function(event, callback){
+							
+							if(event != null && event != "" && this.type != null && this.type != ""){
+								
+								var alreadyExists = false;
+								if(events[this.type] != null && events[this.type][event] != null && events[this.type][event][this.id] != null)
+									alreadyExists = true;
+								else{
+									if(events[this.type] == null)
+										events[this.type] = {};
+									if(events[this.type][event] == null)
+										events[this.type][event] = {};
+									events[this.type][event][this.id] = [];
+								}
+								
+								events[this.type][event][this.id].push(callback);
+								
+								if(!alreadyExists){
+									Ti.App.fireEvent("API_MAP_EDIT_EVENT", { action: "add", event: event, elementId: this.id, elementType: this.type });
+								}
+							}
+							
+						};
+						
+						var _removeEventHandler = function(event, callback){
+							
+							if(event != null && event != "" && this.type != null && this.type != "" && events[this.type] != null && events[this.type][event] != null && events[this.type][event][this.id] != null){
+								
+								var index = events[this.type][event][this.id].indexOf(callback);
+								if(index != -1){
+									events[this.type][event][this.id].splice(index, 1);
+									Ti.App.fireEvent("API_MAP_EDIT_EVENT", {action: "remove", event: event, elementId: this.id, elementType: this.type });
+								}
+									
+							}
+							
+						};
+						
+						var MapView = function MapView(id){
+						
+							this.id = id;
+							this.type = "map";
+							
+							
+							/**
+							 * Adds the map view to a view.
+							 * @param {String} The id of the view.
+							 * @param {Object} Options. Top, left, right, bottom, height, width.
+							 */
+							this.addBound = function(viewId, options){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.addBound', [this.id, viewId], options);
+							};
+							
+							
+							/**
+							 * Sets the bounds of the map view.
+							 * @param {String} The id of the view.
+							 * @param {Object} Options. Top, left, right, bottom, height, width.
+							 */
+							this.setBound = function(viewId, options){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setBound', [this.id, viewId], options);
+							};
+							
+							
+							/**
+						     * Removes the map from the view that contains it
+						     */
+							this.removeBound = function(){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeBound', [this.id], null);
+							};
+							
+							
+							/**
+						  	 * Zooms in or out by specifying a relative zoom level. 
+						  	 * @param {Number} delta. A positive value increases the current zoom level and a negative value decreases the zoom level. 
+						  	 */
+							this.zoom = function(delta){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.getShapesFromGeoJson', [this.id, delta]);
+							};
+							
+							
+							/**
+						     * Changes the location of the map.
+						     * @param {Object} location. See http://docs.appcelerator.com/titanium/3.0/#!/api/Modules.Map.View-method-setLocation
+						     */
+							this.setLocation = function(location){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setLocation', [this.id, location]);
+							};
+							
+							
+							/**
+							 * Set how the map should follow the location of the device.
+							 * @param {Boolean} followLocation. True if the map camera must follow the location of the device. 
+							 * @param {Boolean} followBearing. True if the map camera must follow the bearing of the device.
+							 * @param {Object} options:
+							 * 		- {interval} LocationRequest desired interval in milliseconds. Must be > 0; otherwise, default value is 1000.
+							 * 		- {priority} LocationRequest priority (PRIORITY_BALANCED_POWER_ACCURACY, PRIORITY_HIGH_ACCURACY, PRIORITY_LOW_POWER, PRIORITY_NO_POWER, PRIORITY_UNDEFINED).
+							 */
+							this.followLocation = function(followLocation, followBearing, options){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.followLocation', [this.id, followLocation, followBearing], options);
+							};
+							
+							
+							/**
+						     * Gets the value of a property of the map.
+						     * @param {String} propertyName. String with the name of the property or array with a list of properties.
+						     * @param {callback} Callback function to invoke with the value of the property, or a hashmap of properties and values.
+						     */
+							this.getProperty = function(propertyName, callback){
+								
+								var _callback = function(_res){
+									
+									var _processProperty = function(_propValue){
+										var _newValue = null;
+										if(propertyName === "annotations")
+											return _convertToElementsArray(_propValue, 'annotation');
+										else if(propertyName === "polygons")
+											return _convertToElementsArray(_propValue, 'polygon');
+										else if(propertyName === "routes")
+											return _convertToElementsArray(_propValue, 'route');
+										else if(propertyName === "layers")
+											return _convertToElementsArray(_propValue, 'layer');
+										else
+											return _propValue;
+									};
+									
+									if(propertyName instanceof Array){
+				        		
+						        		var _newRes = {};
+						        		
+						        		for(var _propName in _res){
+						        			var val = _processProperty(_res[_propName]);
+						        			if(typeof(val) !== 'undefined'){
+						        				_newRes[_propName] = val;
+						        			}
+						        		}
+						        		
+						        		callback(_newRes);
+						        		
+						        	} else {
+										callback(_processProperty(_res));
+									}
+										
+								};
+								
+								_genericMethodHandler.call(this, _callback, 'API.SW.Map.getMapProperty', [this.id, propertyName]);
+							};
+							
+							/**
+						     * Gets all the properties of the map.
+						     * @param {callback} Callback function to invoke with the hashmap of properties and values.
+						     */
+							this.getAllProperties = function(callback){
+								this.getProperty(["userLocation", "userLocationButton", "mapType", "region", "animate", "traffic", "enableZoomControls", 
+													"rect", "region", "zoom", "annotations", "polygons", "layers", "routes"], callback);
+							};
+							
+							
+							/**
+						     * Sets the value of a property of the map.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {Object} propertyValue. The value to be set for the property.
+						     */
+							this.setProperty = function(propertyName, propertyValue){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setMapProperty', [this.id, propertyName, propertyValue]);
+							};
+							
+							
+							/**
+							 * Add an annotation to the map.
+							 * @param {Object} annotation. The Annotation object.
+							 */
+							this.addAnnotation = function(annotation){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.addAnnotation', [this.id, annotation.id]);
+							};
+							
+							
+							/**
+							 * Selects an annotation in the map.
+							 * @param {Object} annotation. The Annotation object.
+							 */
+							this.selectAnnotation = function(annotation){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.selectAnnotation', [this.id, annotation.id]);
+							};
+							
+							
+							/**
+							 * Deselects an annotation in the map.
+							 * @param {Object} annotation. The Annotation object.
+							 */
+							this.deselectAnnotation = function(annotation){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.deselectAnnotation', [this.id, annotation.id]);
+							};
+							
+							
+							/**
+							 * Removes an annotation from the map.
+							 * @param {Object} annotation. The Annotation object.
+							 */
+							this.removeAnnotation = function(annotation){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeAnnotation', [this.id, annotation.id]);
+							};
+							
+							
+							/**
+							 * Removes multiple annotations from the map.
+							 * @param {Object} annotation. Array of Annotation objects.
+							 */
+							this.removeAnnotations = function(annotations){
+								var ids = [];
+								for(var i in annotations){
+									if(annotations[i].id != null)
+										ids.push(annotations[i].id);
+								}
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeAnnotations', [this.id, ids]);
+							};
+							
+							
+							/**
+							 * Removes all the annotations from a map.
+							 */
+							this.removeAllAnnotations = function(){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeAllAnnotations', [this.id]);
+							};
+							
+							
+							 /**
+							 * Add a route to the map.
+							 * @param {Object} route. The Route object to add.
+							 */
+							this.addRoute = function(route){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.addRoute', [this.id, route.id]);
+							};
+							
+							
+							/**
+							 * Removes a route from the map.
+							 * @param {Object} route. The Route object to add.
+							 */
+							this.removeRoute = function(route){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeRoute', [this.id, route.id]);
+							};
+							
+							
+							/**
+							 * Removes all the routes from the map.
+							 */
+							this.removeAllRoutes = function(){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeAllRoutes', [this.id]);
+							};
+							
+							
+							/**
+							 * Add a polygon to the map.
+							 * @param {Object} polygon. The Polygon object.
+							 */
+							this.addPolygon = function(polygon){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.addPolygon', [this.id, polygon.id]);
+							};
+							
+							
+							/**
+							 * Removes a polygon from the map.
+							 * @param {Object} polygon. The Polygon object.
+							 */
+							this.removePolygon = function(polygon){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removePolygon', [this.id, polygon.id]);
+							};
+							
+							
+							/**
+							 * Removes all the polygons from the map.
+							 */
+							this.removeAllPolygons = function(){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeAllPolygons', [this.id]);
+							};
+							
+							
+							/**
+							 * Add a layer to the map.
+							 * @param {Object} layer. The Layer object.
+							 */
+							this.addLayer = function(layer){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.addLayer', [this.id, layer.id]);
+							};
+							
+							
+							/**
+							 * Removes a layer from the map.
+							 * @param {Object} layer. The Layer object.
+							 */
+							this.removeLayer = function(layer){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeLayer', [this.id, layer.id]);
+							};
+							
+							
+							/**
+							 * Removes all the layers from the map.
+							 */
+							this.removeAllLayers = function(){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.removeAllLayers', [this.id]);
+							};
+							
+							/**
+						     * Gets the base layer 
+						     * @param {callback} Callback function to invoke the base layer (can be a layer id (String) or a google layer id (Integer)).
+						     */
+							this.getBaseLayer = function(callback){
+								_genericMethodHandler.call(this, callback, 'API.SW.Map.getBaseLayer', [this.id]);
+							};
+							
+							
+							/**
+						     * Set the base layer of the map.
+						 	 * @param {Object} layer  A layer object or the constant of a Google Layer.
+						     */
+							this.setBaseLayer = function(layer){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setBaseLayer', [this.id, (layer.id != null ? layer.id : layer)]);
+							};
+							
+							
+							/**
+							 * Adds the specified callback as an event listener for the named event.
+							 * @param {event} Name of the event. Allowed events: ["click", "complete", "longclick", "regionchanged", "postlayout"]
+							 * @param {callback} Callback function to invoke when the event is fired.
+							 */
+							this.addEventListener = function(event, callback){
+								if(_allowedEventsData[this.type][event] != null)
+									_registerEventHandler.call(this, event, callback);
+							};
+							
+							
+							/**
+							 * Removes the specified callback as an event listener for the named event.
+							 * Multiple listeners can be registered for the same event, so the callback parameter is used to determine which listener to remove. 
+							 * @param {event} Name of the event. Allowed events: ["click", "complete", "longclick", "regionchanged", "postlayout"]
+							 * @param {callback} Callback function to invoke when the event is fired.
+							 */
+							this.removeEventListener = function(event, callback){
+								if(_allowedEventsData[this.type][event] != null)
+									_removeEventHandler.call(this, event, callback);
+							};
+								
+							
+						};
+						
+						var Annotation = function Annotation(id){
+							this.id = id;
+							this.type = "annotation";
+							
+							
+							/**
+						     * Gets the value of a property of the annotation.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {callback} Callback function to invoke with the value of the property, or a hashmap of properties and values.
+						     */
+							this.getProperty = function(propertyName, callback){
+								_genericMethodHandler.call(this, callback, 'API.SW.Map.getAnnotationProperty', [this.id, propertyName]);
+							};
+							
+							
+							/**
+						     * Gets all the properties of the annotation.
+						     * @param {callback} Callback function to invoke with the hashmap of properties and values.
+						     */
+							this.getAllProperties = function(callback){
+								this.getProperty(["id", "subtitle", "subtitleid", "title", "titleid", "latitude", "longitude", "draggable", 
+													"image", "pincolor", "customView", "leftButton", "leftView", "rightButton", "rightView", 
+													"showInfoWindow", "visible"], callback);
+							};
+							
+							
+							/**
+						     * Sets the value of a property of the annotation.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {propertyValue} The value to be set for the property.
+						     */
+							this.setProperty = function(propertyName, propertyValue){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setAnnotationProperty', [this.id, propertyName, propertyValue]);
+							};
+							
+							/**
+							 * Adds the specified callback as an event listener for the named event.
+							 * @param {event} Name of the event.
+							 * @param {callback} Callback function to invoke when the event is fired.
+							 */
+							this.addEventListener = function(event, callback){
+								if(_allowedEventsData[this.type][event] != null)
+									_registerEventHandler.call(this, event, callback);
+							};
+							
+							
+							/**
+							 * Removes the specified callback as an event listener for the named event.
+							 * Multiple listeners can be registered for the same event, so the callback parameter is used to determine which listener to remove. 
+							 * @param {event} Name of the event.
+							 * @param {callback} Callback function to invoke when the event is fired.
+							 */
+							this.removeEventListener = function(event, callback){
+								if(_allowedEventsData[this.type][event] != null)
+									_removeEventHandler.call(this, event, callback);
+							};
+						};
+						
+						var Polygon = function Polygon(id){
+							this.id = id;
+							this.type = "polygon";
+							
+							/**
+						     * Gets the value of a property of the polygon.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {callback} Callback function to invoke with the value of the property, or a hashmap of properties and values.
+						     */
+							this.getProperty = function(propertyName, callback){
+								_genericMethodHandler.call(this, callback, 'API.SW.Map.getPolygonProperty', [this.id, propertyName]);
+							};
+							
+							
+							/**
+						     * Gets all the properties of the polygon.
+						     * @param {callback} Callback function to invoke with the hashmap of properties and values.
+						     */
+							this.getAllProperties = function(callback){
+								this.getProperty(["id", "points", "holePoints", "strokeWidth", "strokeColor", "fillColor", "annotationId", "zIndex"], callback);
+							};
+							
+							
+							/**
+						     * Sets the value of a property of the polygon.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {Object} propertyValue. The value to be set for the property.
+						     */
+							this.setProperty = function(propertyName, propertyValue){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setPolygonProperty', [this.id, propertyName, propertyValue]);
+							};
+							
+							
+							/**
+							 * Adds the specified callback as an event listener for the named event.
+							 * @param {event} Name of the event.
+							 * @param {callback} Callback function to invoke when the event is fired.
+							 */
+							this.addEventListener = function(event, callback){
+								if(_allowedEventsData[this.type][event] != null)
+									_registerEventHandler.call(this, event, callback);
+							};
+							
+							
+							/**
+							 * Removes the specified callback as an event listener for the named event.
+							 * Multiple listeners can be registered for the same event, so the callback parameter is used to determine which listener to remove. 
+							 * @param {event} Name of the event.
+							 * @param {callback} Callback function to invoke when the event is fired.
+							 */
+							this.removeEventListener = function(event, callback){
+								if(_allowedEventsData[this.type][event] != null)
+									_removeEventHandler.call(this, event, callback);
+							};
+						};
+						
+						
+						var Route = function Route(id){
+							this.id = id;
+							this.type = "route";
+							
+							
+							/**
+						     * Gets the value of a property of the route.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {callback} Callback function to invoke with the value of the property, or a hashmap of properties and values.
+						     */		
+							this.getProperty = function(propertyName, callback){
+								_genericMethodHandler.call(this, callback, 'API.SW.Map.getRouteProperty', [this.id, propertyName]);
+							};
+							
+							
+							/**
+						     * Gets all the properties of the route.
+						     * @param {callback} Callback function to invoke with the hashmap of properties and values.
+						     */
+							this.getAllProperties = function(callback){
+								this.getProperty(["id", "points", "width", "color"], callback);
+							};
+							
+							
+							/**
+						     * Sets the value of a property of the route.
+						     * @param {String}propertyName.  String with the name of the property.
+						     * @param {Object} propertyValue. The value to be set for the property.
+						     */
+							this.setProperty = function(propertyName, propertyValue){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setRouteProperty', [this.id, propertyName, propertyValue]);
+							};
+							
+						};
+						
+						var Layer = function Layer(id){
+							this.id = id;
+							this.type = "layer";
+							
+							
+							/**
+						     * Gets the value of a property of the layer.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {callback} Callback function to invoke with the value of the property, or a hashmap of properties and values.
+						     */
+							this.getProperty = function(propertyName, callback){
+								_genericMethodHandler.call(this, callback, 'API.SW.Map.getLayerProperty', [this.id, propertyName]);
+							};
+							
+							
+							/**
+						     * Gets all the properties of the layer.
+						     * @param {callback} Callback function to invoke with the hashmap of properties and values.
+						     */
+							this.getAllProperties = function(callback){
+								this.getProperty(["id", "baseUrl", "type", "name", "srs", "visible", "zIndex", "opacity", "format", "style", "tyleMatrixSet"], callback);
+							};
+							
+							
+							/**
+						     * Sets the value of a property of the layer.
+						     * @param {String} propertyName. String with the name of the property.
+						     * @param {Object} propertyValue. The value to be set for the property.
+						     */
+							this.setProperty = function(propertyName, propertyValue){
+								_genericMethodHandler.call(this, voidCallback, 'API.SW.Map.setLayerProperty', [this.id, propertyName, propertyValue]);
+							};
+							
+						};
+						
+						
+						/**
+						 * Converts an array of ids to an array of elements (maps, polygons, etc) with those ids.
+						 * @param {Object} _idsArray
+						 * @param {Object} _type: annotation | polygon | route | map
+						 */
+						var _convertToElementsArray = function _convertToElementsArray(_idsArray, _type){
+							var _resArray = [];
+							
+							for(var x = 0; x < _idsArray.length; x++){
+								var _id = _idsArray[x];
+								if(_id != null){
+									_resArray.push(_convertToElement(_id, _type));
+								}
+							}
+							
+							return _resArray;
+						};
+						
+						/**
+						 * Converts an id to an element (maps, polygons, etc) with that id.
+						 * @param {Object} _idsArray
+						 * @param {Object} _type: annotation | polygon | route | map
+						 */
+						var _convertToElement = function _convertToElement(_id, _type){
+							if(_type === "annotation")
+								return new Annotation(_id);
+							else if(_type === "polygon")
+								return new Polygon(_id);
+							else if(_type === "route")
+								return new Route(_id);
+							else if(_type === "layer")
+								return new Layer(_id);
+							else if(_type === "map")
+								return new MapView(_id);
+						};
+						
+					}; //End of Map object
+					
+				
+					return new Map();
+				}()),
+                    
+                    Notification : {
+                        /** Create Toast Notification
+                         * @param {function} Callback
+                         * @param {String} message
+                         * @param {Object} options {
+                         *          height: {Number}            -default = 100
+                         *          opacity: {Number}           -default = 1 [0 .. 1]
+                         *          borderColor: {String}       -default = #D3D3D3
+                         *          borderWidth: {Number}       -default = 1
+                         *          borderRadius: {Number}      -default = 5
+                         *          backgroundColor: {String}   -default = #E6E6E6
+                         *          fontSize: {Number}          -default = 16
+                         *          fontWeight: {String}        -default = normal ['bold', 'normal']
+                         *          textColor: {String}         -default = #000000
+                         *      }
+                         * @return {String} JSON Information of Notification created */
+                        createNotification: function (callback, msg, options) {
+                            if (typeof msg !== 'string') {
+                                // TODO definir formato de errores HTML
+                                throw new Error('createNotification ERROR. msg param must be String type');
+                            }
+                            if (!(options instanceof Object)) {
+                                options = null;
+                            }
+                            _genericMethodHandler.call(this, callback, 'API.SW.Notification.createNotification', [msg], options);
+                        },
+                    },
+                    Social : {
+
+                    },
+                },
+                HW : {
+                    Acceloremeter : {
+
+                    },
+                    Battery : {
+
+                    },
+                    Camera : {
+
+                    },
+                    GeoLocation : {
+
+                    },
+                    Gesture : {
+
+                    },
+                    Media : {
+
+                            /* VIDEO TODO */
+                            /** Opens the photo gallery image picker.
+                              * @param {function} Callback
+                              * @param {Object} {'name': String} optional
+                              * @return {Number} */
+                            openPhotoGallery : function openPhotoGallery(callback, options) {
+                            if (!(callback instanceof Function)) {
+                                return false;
+                            }
+                            if (!(options instanceof Object)) {
+                                options = null;
+                            }
+                                _genericMethodHandler.call(this, callback, 'API.SW.Media.openPhotoGallery', [], options);
+                            },
+                            /** Takes a screen shot of the visible UI on the device. This method is
+                             *  asynchronous.
+                             * @param {screenSotCallback} callback that will receive screenshot image as Blob object */
+                            takeScreenshot : function takeScreenshot(callback) {
+                                _genericMethodHandler.call(this, callback, 'API.SW.Media.takeScreenshot', [callback], null, true);
+                            },
+                            /** Takes a screen shot of the visible UI on the device. This method is
+                             *  asynchronous.
+                             * @param {pattern} [Number[]=[100, 300, 100, 200, 100, 50]] optional vibrate pattern only available for Android.*/
+                            vibrate : function vibrate(pattern) {
+                                if (Ti.App.isApple || pattern == null || !(pattern instanceof Array)) {
+                                    Titanium.Media.vibrate();
+                                }
+                                // pattern only available for Android
+                                Titanium.Media.vibrate(pattern);
+                            },
+                            /** Create new AudioPlayer
+                             * @param {audioPlayerOptions} options
+                             * @return {Object} audioPlayer Dummy*/
+                            createAudioPlayer : function createAudioPlayer(options) {
+                                return new dummyAudioPlayer(API, options, this);
+                            },
+                            /** Create new Video
+                             * @param {videoPlayerOptions} options
+                             * @return {Object} videoPlayer Dummy*/
+                            createVideoPlayer : function createVideoPlayer(options) {
+                                return new dummyVideoPlayer(API, options, this);
+                            }
+                    },
+                    Network : {
+
+                    },
+                    System : {
+                        /** Get device platform
+                          * @param {function} Callback
+                          * @param {String} Contact Name
+                          * @return : String ('ios', 'android') */
+                        getDeviceOs: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getDeviceOs');
+                        },
+                        /** Get System's OS version.
+                          * @param {function} Callback
+                          * @return : String */
+                        getVersion: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getVersion');
+                        },
+                        /** Get device's Model.
+                          * @param {function} Callback
+                          * @return : String */
+                        getModel: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getModel');
+                        },
+                        /** Get System's processor architecture.
+                          * @param {function} Callback
+                          * @return : String */
+                        getArchitecture: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getArchitecture');
+                        },
+                        /** Get available memory
+                          * @param {function} Callback
+                          * @return : Int (Bytes)*/
+                        getAvailableMemory: function (callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getAvailableMemory');
+                        },
+
+                        /** Get short name of the JavaScript runtime in use.
+                          * @param {function} Callback
+                          * @return : String */
+                        getJsRuntime: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getJsRuntime');
+                        },
+
+                        /** Get the manufacturer of the device.
+                          * @param {function} Callback
+                          * @return : String */
+                        getManufacturer: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getManufacturer');
+                        },
+
+                        /** Get the number of processing cores.
+                          * @param {function} Callback
+                          * @return : String */
+                        getProcessorCount: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getProcessorCount');
+                        },
+
+                        /** Get system name
+                          * @param {function} Callback
+                          * @return : String */
+                        getUsername: function(callback) {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getUsername');
+                        },
+
+                        /** Get system's default language.
+                          * @param {function} Callback
+                          * @return : String */
+                        getLocale: function() {
+                            _genericMethodHandler.call(this, callback, 'API.HW.System.getLocale');
+                        },
+                    },
+                }
+            }
+    });
+
+// EVENTS
+    var _invokeEventCallbacks = function (data) {
+            var i;
+            var publicEvent = data.publicEvent;
+
+            Ti.API.info('[APIBridge] Invoking HTML callbacks for event: ' + publicEvent + ' with data:' + JSON.stringify(data));
+
+            if (eventHandlers[publicEvent] != null) { 
+                if (eventHandlers[publicEvent].length > 0) {
+                    for (i = 0; i < eventHandlers[publicEvent].length; i ++) {
+                        Ti.API.info('[APIBridge] invocando event callback html ' + publicEvent);
+                        eventHandlers[publicEvent][i](data);
+                    }
+                }
+            } else {
+                // TODO Error. Callback not found
+                Ti.API.info('[APIBridge] error in _invokeEventCallbacks publicEvent:' + publicEvent + ', eventHandlers: ' + JSON.stringify(eventHandlers));
+            }
+    };
+
+    Object.defineProperty(window.API, 'addEventListener', {
+        value: function addEventListener(publicEvent, handler) {
+            Ti.API.info('[APIBridge] addeventlistener de ' + publicEvent);
+            if (eventHandlers[publicEvent] == null || eventHandlers[publicEvent].length <= 0) {
+                // First event listener for this publicEvent
+                eventHandlers[publicEvent] = [];
+                Ti.API.info(' [APIBridge] eventHandlers[' + publicEvent + '].length : ' + eventHandlers[publicEvent].length);
+                // Listen the event
+                Ti.App.addEventListener(publicEvent, _invokeEventCallbacks);
+            }
+            eventHandlers[publicEvent].push(handler);
+            Ti.API.info('[APIBridge] event handler added');
+            Ti.API.info('[APIBridge] eventHandlers[' + publicEvent + '].length : ' + eventHandlers[publicEvent].length);
+
+            // Subscribe this view to publicEvent
+            Ti.App.fireEvent('APIEvent', {'action': 'addEventListener', 'event': publicEvent, 'viewId': id});
+        }
+    });
+
+    Object.preventExtensions(window.API.addEventListener);
+
+    Object.defineProperty(window.API, 'removeEventListener', {
+        value: function removeEventListener(publicEvent, handler) {
+            var index;
+
+            Ti.API.info('[APIBridge] eventHandlers[' + publicEvent + '].length : ' + eventHandlers[publicEvent].length);
+            if (eventHandlers[publicEvent] == null || eventHandlers[publicEvent].length <= 0) {
+                return false;
+            }
+            index = eventHandlers[publicEvent].indexOf(handler);
+            eventHandlers[publicEvent].splice(index, 1);
+            Ti.API.info('[APIBridge] event handler removed');
+            Ti.API.info('[APIBridge] eventHandlers[' + publicEvent + '].length : ' + eventHandlers[publicEvent].length);
+            // remove listener
+            Ti.App.removeEventListener(publicEvent, _invokeEventCallbacks);
+
+            // Unsubscribe this view to publicEvent
+            Ti.App.fireEvent('APIEvent', {'action': 'removeEventListener', 'event': publicEvent, 'viewId': id});
+        }
+    });
+
+    Object.preventExtensions(window.API.removeEventListener);
+    /* Audio Dummy */
+    // TODO jsdoc
+    var dummyAudioPlayer = function dummyAudioPlayer(API, options) {
+
+        if(appleOS === true){
+            Ti.API.info('******* iOS System LOADED *******');
+            this.STATE_BUFFERING = 5;
+            this.STATE_INITIALIZED = 0;
+            this.STATE_PAUSED = 8;
+            this.STATE_PLAYING  = 4;
+            this.STATE_STARTING  = 1;
+            this.STATE_STOPPED = 7;
+            this.STATE_WAITING_FOR_DATA = 2;
+            this.STATE_WAITING_FOR_QUEUE = 3;
+        }
+        else {
+            Ti.API.info('******* Android System LOADED *******');
+            this.STATE_BUFFERING = 0;
+            this.STATE_INITIALIZED = 1;
+            this.STATE_PAUSED = 2;
+            this.STATE_PLAYING  = 3;
+            this.STATE_STARTING  = 4;
+            this.STATE_STOPPED = 5;
+            this.STATE_WAITING_FOR_DATA = 7;
+            this.STATE_WAITING_FOR_QUEUE = 8;
+        }
+        this.STATE_STOPPING = 6;
+
+        this.id = null;
+        this.pendings = [];
+        this.callbacks = {
+            'audioChange': [],
+            'audioProgress': []
+        };
+        this.pendingEvents = {
+            'audioChange': {},
+            'audioProgress': {}
+        };
+        this.lastChange = -1;
+        this.lastProgress = -1;
+        this.busy = true;
+        Ti.API.info('[Audio DUMMY] STATE: creating');
+        this.state = 'creating';
+
+        var callback = function(id) {
+            Ti.API.info('[Audio DUMMY].............. available id:' + id);
+            this.id = id;
+            this.syncAddEventListener('audioChange', this.changeHandler.bind(this));
+            this.syncAddEventListener('audioProgress', this.processHandler.bind(this));
+            genericCallback.call(this, id);
+            Ti.API.info('[Audio DUMMY] STATE: stoped');
+            this.state = 'stopped';
+        };
+        if (!(options instanceof Object)) {
+            options = null;
+        }
+        Ti.API.info('[Audio DUMMY] waiting for audioPlayer id ..............');
+        _genericMethodHandler.call(API, callback.bind(this), 'API.HW.Media.createAudioPlayer', [], options);
+    };
+
+    // Public
+    dummyAudioPlayer.prototype.addEventListener = function addEventListener(publicEvent, callback) {
+        Ti.API.info('[Audio DUMMY] 13 - addEventListener');
+        addProcess.call(this, 13, {'publicEvent': publicEvent, 'callback': callback});
+    };
+
+    dummyAudioPlayer.prototype.removeEventListener = function removeEventListener(publicEvent, callback) {
+        Ti.API.info('[Audio DUMMY] 31 - removeEventListener');
+        addProcess.call(this, 31, {'publicEvent': publicEvent, 'callback': callback});
+    };
+
+    dummyAudioPlayer.prototype.play = function play() {
+        Ti.API.info('[Audio DUMMY] 1 - play');
+        addProcess.call(this, 1);
+    };
+
+    dummyAudioPlayer.prototype.pause = function pause() {
+        Ti.API.info('[Audio DUMMY] 2 - pause');
+        addProcess.call(this, 2);
+    };
+
+    dummyAudioPlayer.prototype.stop = function stop() {
+        Ti.API.info('[Audio DUMMY] 3 - stop');
+        addProcess.call(this, 3);
+    };
+
+    dummyAudioPlayer.prototype.release = function release() {
+        Ti.API.info('[Audio DUMMY] 6 - release');
+        addProcess.call(this, 6);
+    };
+
+    dummyAudioPlayer.prototype.reset = function reset() {
+        Ti.API.info('[Audio DUMMY] 7 - reset');
+        addProcess.call(this, 7);
+    };
+
+    dummyAudioPlayer.prototype.setURL = function setURL(url) {
+        Ti.API.info('[Audio DUMMY] 4 - setURL');
+        addProcess.call(this, 4, {'url': url});
+    };
+
+    dummyAudioPlayer.prototype.setAudioPlayerVolume = function setAudioPlayerVolume(vol) {
+        Ti.API.info('[Audio DUMMY] 5 - setVolume: ' + vol);
+        addProcess.call(this, 5, {'value': vol});
+    };
+
+    // Private
+    dummyAudioPlayer.prototype.changeHandler = function changeHandler(event) {
+        var i;
+
+        if (this.lastChange + 1 == event.order) {
+            // Real Next
+            Ti.API.info('[Audio DUMMY eventHandler] change event ' + event.order + ', viewId: ' + id + ', entityId: ' + this.id +', event: ' + JSON.stringify(event));
+            this.lastChange += 1;
+            for (i = 0; i < this.callbacks.audioChange.length; i ++) {
+                Ti.API.info('[Audio DUMMY eventHandler] launching HTML callback... ' + this.callbacks.audioChange[i]);
+                this.callbacks.audioChange[i](event);
+            }
+            if (this.pendingEvents.audioChange[event.order + 1] != null) {
+                // Pop waiting event
+                this.changeHandler(this.pendingEvents.audioChange[event.order + 1]);
+                delete this.pendingEvents.audioChange[event.order + 1];
+            }
+        } else if (this.lastChange + 1 < event.order) {
+            // Push this event
+            Ti.API.info('[Audio DUMMY eventHandler] save this change event: ' + event.order);
+            this.pendingEvents.audioChange[event.order] = event;
+        } else {
+            // ORDER ERROR
+            Ti.API.info('[Audio DUMMY eventHandler] change event order error ' + event.order + ' < ' + this.lastChange + ', event: ' + JSON.stringify(event));
+            // discard event
+        }
+    };
+
+    dummyAudioPlayer.prototype.processHandler = function processHandler(event) {
+        var i;
+
+        if (this.lastProgress + 1 == event.order) {
+            // Real Next
+            Ti.API.info('[Audio DUMMY eventHandler] progress event ' + event.order + ', viewId: ' + id + ', entityId: ' + this.id +', event: ' + JSON.stringify(event));
+            this.lastProgress += 1;
+            for (i = 0; i < this.callbacks.audioProgress.length; i ++) {
+                this.callbacks.audioProgress[i](event);
+            }
+            if (this.pendingEvents.audioProgress[event.order + 1] != null) {
+                // Pop waiting event
+                this.changeHandler(this.pendingEvents.audioProgress[event.order + 1]);
+                delete this.pendingEvents.audioProgress[event.order + 1];
+            }
+        } else if (this.lastProgress + 1 < event.order) {
+            // Push this event
+            Ti.API.info('[Audio DUMMY eventHandler] save this progress event: ' + event.order);
+            this.pendingEvents.audioProgress[event.order]= event;
+        } else {
+            // ORDER ERROR
+            Ti.API.info('[Audio DUMMY eventHandler] progress event order error ' + event.order + ' < ' + this.lastChange + ', event: ' + JSON.stringify(event));
+            // discard event
+        }
+    };
+
+    dummyAudioPlayer.prototype.syncAddEventListener = function SyncAddEventListener(publicEvent, callback) {
+        Ti.API.info('[Audio DUMMY] Sync-addEventListener. event: ' + publicEvent + ', viewId: ' + id + ', entityId: ' + this.id);
+        if (eventHandlers[publicEvent] == null || eventHandlers[publicEvent].length <= 0) {
+            // First event listener for this publicEvent
+            eventHandlers[publicEvent] = [];
+            // Listen the event
+            Ti.App.addEventListener(publicEvent, _invokeEventCallbacks);
+        }
+        eventHandlers[publicEvent].push(callback);
+        Ti.API.info('[Audio DUMMY] Sync-addEventListener pre-fire');
+
+        // Subscribe this view to publicEvent
+        Ti.App.fireEvent('APIEvent', {'action': 'addEventListener', 'event': publicEvent, 'viewId': id, 'entityId': this.id, 'dummy': 'audio'});
+        Ti.API.info('[Audio DUMMY] Sync-addEventListener post-fire');
+    };
+
+    dummyAudioPlayer.prototype.syncRemoveEventListener = function syncRemoveEventListener(publicEvent, callback) {
+        Ti.API.info('[Audio DUMMY] Sync-removeEventListener. event:' + publicEvent + ', viewId: ' + id + ', entityId: ' + this.id);
+        var index;
+
+        if (eventHandlers[publicEvent] == null || eventHandlers[publicEvent].length <= 0) {
+            return false;
+        }
+        index = eventHandlers[publicEvent].indexOf(callback);
+        eventHandlers[publicEvent].splice(index, 1);
+
+        // remove listener
+        Ti.App.removeEventListener(publicEvent, _invokeEventCallbacks);
+
+        // Unsubscribe this view to publicEvent
+        Ti.App.fireEvent('APIEvent', {'action': 'removeEventListener', 'event': publicEvent, 'viewId': id, 'entityId': this.id, 'dummy': 'audio'});
+    };
+
+    /*
+     * play      -> 1
+     * pause     -> 2
+     * stop      -> 3
+     * setURL    -> 4
+     * setVolume -> 5
+     * release   -> 6
+     * reset     -> 7
+     * addEventListener    -> 13
+     * removeEventListener -> 31
+     */
+    var addProcess = function addProcess(type, options) {
+        Ti.API.info('[Audio DUMMY] Add new order to AudioPlayer:' + type);
+        this.pendings.push({'type': type, 'options': options});
+        process.call(this);
+    };
+
+    var process = function process() {
+        var i, isRedund;
+
+        Ti.API.info('[Audio DUMMY] trying to process. Busy-> ' + this.busy + '; pendings: ' + JSON.stringify(this.pendings));
+        if (!this.busy && this.pendings.length > 0) {
+            var newOrder = this.pendings.shift();
+            Ti.API.info('[Audio DUMMY] ¡¡¡__ processing ' + JSON.stringify(newOrder));
+            this.busy = true;
+            switch(newOrder.type) {
+                case 1:
+                    // PLAY
+                    isRedund = false;
+                    for (i = 0; i < this.pendings.length; i ++) {
+                        if (this.pendings[i].type == 1) {
+                            isRedund = true;
+                            break;
+                        }
+                    }
+                    if (!isRedund) {
+                        _genericMethodHandler.call(API, playCallback.bind(this), 'API.HW.Media.playAudioPlayer', [this.id], null);
+                    } else {
+                        // Discard this order.
+                         Ti.API.info('[Audio DUMMY] Discarding PLAY');
+                         genericCallback.call(this);
+                    }
+                    break;
+                case 2:
+                    // PAUSE
+                    isRedund = false;
+                    for (i = 0; i < this.pendings.length; i ++) {
+                        if (this.pendings[i].type == 2) {
+                            isRedund = true;
+                            break;
+                        }
+                    }
+                    if (!isRedund) {
+                        _genericMethodHandler.call(API, pauseCallback.bind(this), 'API.HW.Media.pauseAudioPlayer', [this.id], null);
+                    } else {
+                        // Discard this order.
+                         Ti.API.info('[Audio DUMMY] Discarding PAUSE');
+                         genericCallback.call(this);
+                    }
+                    break;
+                case 3:
+                    // STOP
+                    isRedund = false;
+                    for (i = 0; i < this.pendings.length; i ++) {
+                        if (this.pendings[i].type == 3) {
+                            isRedund = true;
+                            break;
+                        }
+                    }
+                    if (!isRedund) {
+                        _genericMethodHandler.call(API, stopCallback.bind(this), 'API.HW.Media.stopAudioPlayer', [this.id], null);
+                    } else {
+                        // Discard this order.
+                         Ti.API.info('[Audio DUMMY] Discarding STOP');
+                         genericCallback.call(this);
+                    }
+                    break;
+                case 4:
+                    // SETURL
+                    isRedund = false;
+                    for (i = 0; i < this.pendings.length; i ++) {
+                        if (this.pendings[i].type == 4) {
+                            isRedund = true;
+                            break;
+                        }
+                    }
+                    if (!isRedund) {
+                        _genericMethodHandler.call(API, setURLCallback.bind(this), 'API.HW.Media.setAudioPlayerURL', [this.id, newOrder.options.url], null);
+                    } else {
+                        // Discard this order.
+                         Ti.API.info('[Audio DUMMY] Discarding setURL');
+                         genericCallback.call(this);
+                    }
+                    break;
+                case 5:
+                    // SET VOLUME
+                    _genericMethodHandler.call(API, volumeCallback.bind(this), 'API.HW.Media.setAudioPlayerVolume', [this.id, newOrder.options.value], null);
+                    break;
+                case 6:
+                    // RELEASE
+                    _genericMethodHandler.call(API, releaseCallback.bind(this), 'API.HW.Media.releaseAudioPlayer', [this.id], null);
+                    break;
+                case 7:
+                    // RESET
+                    _genericMethodHandler.call(API, resetCallback.bind(this), 'API.HW.Media.resetAudioPlayer', [this.id], null);
+                    break;
+                case 13:
+                    // AddEventListener
+                    Ti.API.info('[Audio DUMMY] addEventListener ' + newOrder.options.publicEvent + ', entityId: ' + this.id);
+                    if (newOrder.options.publicEvent == 'audioChange') {
+                        this.callbacks.audioChange.push(newOrder.options.callback);
+                    } else if (newOrder.options.publicEvent == 'audioProgress') {
+                        this.callbacks.audioProgress.push(newOrder.options.callback);
+                    }
+                     else {
+                        Ti.API.info('[Audio DUMMY.addEventListener] Error. unknown event: ' + newOrder.options.publicEvent);
+                    }
+                    genericCallback.call(this);
+                    break;
+                case 31:
+                    // RemoveEventListener
+                    Ti.API.info('[Audio DUMMY] removeEventListener: ' + newOrder.options.publicEvent);
+                    if (newOrder.options.publicEvent == 'audioChange') {
+                        this.callbacks.audioChange.pop(newOrder.options.callback);
+                    } else if (newOrder.options.publicEvent == 'audioProgress') {
+                        this.callbacks.audioProgress.pop(newOrder.options.callback);
+                    } else {
+                        Ti.API.info('[Audio DUMMY.addEventListener] Error. unknown event: ' + newOrder.options.publicEvent);
+                    }
+                    genericCallback.call(this);
+                    break;
+                default:
+                    // ERROR
+                    Ti.API.info('[Audio DUMMY] Error in AudioPlayerDummy');
+                    break;
+            }
+        }
+    };
+
+    var playCallback = function playCallback() {
+        Ti.API.info('[Audio DUMMY] PLAY Callback');
+        Ti.API.info('[Audio DUMMY] STATE: initializing');
+        this.state = 'initializing';
+        genericCallback.call(this);
+    };
+
+    var pauseCallback = function pauseCallback() {
+        Ti.API.info('[Audio DUMMY] PAUSE Callback');
+        Ti.API.info('[Audio DUMMY] STATE: pausing');
+        this.state = 'pausing';
+        genericCallback.call(this);
+    };
+
+    var stopCallback = function stopCallback() {
+        Ti.API.info('[Audio DUMMY] STOP Callback');
+        Ti.API.info('[Audio DUMMY] STATE: stopping');
+        this.state = 'stopping';
+        genericCallback.call(this);
+    };
+
+    var setURLCallback = function setURLCallback() {
+        Ti.API.info('[Audio DUMMY] SetURL Callback.');
+        Ti.API.info('[Audio DUMMY] current STATE: ' + this.state);
+        genericCallback.call(this);
+    };
+
+
+    var volumeCallback = function volumeCallback() {
+        Ti.API.info('[Audio DUMMY] volume Callback.');
+        Ti.API.info('[Audio DUMMY] current STATE: ' + this.state);
+        genericCallback.call(this);
+    };
+
+    var releaseCallback = function releaseCallback() {
+        Ti.API.info('[Audio DUMMY] release Callback.');
+        Ti.API.info('[Audio DUMMY] STATE: clean');
+        this.state = 'clean';
+        genericCallback.call(this);
+    };
+
+    var resetCallback = function resetCallback() {
+        Ti.API.info('[Audio DUMMY] reset Callback.');
+        Ti.API.info('[Audio DUMMY] STATE: resetting');
+        this.state = 'resetting';
+        genericCallback.call(this);
+    };
+
+    var genericCallback = function genericCallback() {
+        this.busy = false;
+        if (this.pendings.length > 0) {
+            Ti.API.info('[Audio DUMMY] busy');
+            process.call(this);
+        } else {
+            Ti.API.info('[Audio DUMMY] free');
+        }
+    };
+    // End Audio Dummy
+
+    /* Video Dummy */
+    // TODO jsdoc
+    var dummyVideoPlayer = function dummyVideoPlayer(API, options) {
+
+        this.id = null;
+        this.pendings = [];
+        this.callbacks = {
+            'videoComplete': []
+        };
+        this.pendingEvents = {
+            'videoComplete': {}
+        };
+        this.lastComplete = -1;
+        this.busy = true;
+        Ti.API.info('[Video DUMMY] STATE: creating');
+        this.state = 'creating';
+
+        var callback = function(id) {
+            Ti.API.info('[Video DUMMY].............. available id:' + id);
+            this.id = id;
+            this.completeHandler = this.videoCompleteHandler.bind(this);
+            this.syncAddEventListener('videoComplete', this.completeHandler.bind(this));
+            videoGenericCallback.call(this, id);
+            Ti.API.info('[Video DUMMY] STATE: stoped');
+            this.state = 'stopped';
+        };
+        if (!(options instanceof Object)) {
+            options = null;
+        }
+        Ti.API.info('[Video DUMMY] waiting for videoPlayer id ..............');
+        _genericMethodHandler.call(API, callback.bind(this), 'API.HW.Media.createVideoPlayer', [id], options);
+    };
+
+    // Public
+    dummyVideoPlayer.prototype.addEventListener = function addEventListener(publicEvent, callback) {
+        Ti.API.info('[Video DUMMY] 13 - addEventListener');
+        addVideoProcess.call(this, 13, {'publicEvent': publicEvent, 'callback': callback});
+    };
+
+    dummyVideoPlayer.prototype.removeEventListener = function removeEventListener(publicEvent, callback) {
+        Ti.API.info('[Video DUMMY] 13 - removeEventListener');
+        addVideoProcess.call(this, 13, {'publicEvent': publicEvent, 'callback': callback});
+    };
+
+    dummyVideoPlayer.prototype.play = function play() {
+        Ti.API.info('[Video DUMMY] 1 - play');
+        addVideoProcess.call(this, 1);
+    };
+
+    dummyVideoPlayer.prototype.pause = function pause() {
+        Ti.API.info('[Video DUMMY] 2 - pause');
+        addVideoProcess.call(this, 2);
+    };
+
+    dummyVideoPlayer.prototype.stop = function stop() {
+        Ti.API.info('[Video DUMMY] 3 - stop');
+        addVideoProcess.call(this, 3);
+    };
+
+    dummyVideoPlayer.prototype.setURL = function setURL(url) {
+        Ti.API.info('[Video DUMMY] 4 - setVideoURL');
+        addVideoProcess.call(this, 4, {'url': url});
+    };
+
+    dummyVideoPlayer.prototype.setBound = function setBound(options) {
+        Ti.API.info('[Video DUMMY] - 5 setVideoBound');
+        if (options == null) {
+            options = {};
+        }
+        addVideoProcess.call(this, 5, {'pos': options});
+    };
+
+    dummyVideoPlayer.prototype.destroy = function destroy() {
+        Ti.API.info('[Video DUMMY] 6 - destroy');
+        addVideoProcess.call(this, 6);
+        Ti.API.info('[Video DUMMY] 6 - destroy');
+        addVideoProcess.call(this, 6);
+    };
+
+    dummyVideoPlayer.prototype.setFullScreen = function setFullScreen() {
+        Ti.API.info('[Video DUMMY] 7 - setFullScreen');
+        addVideoProcess.call(this, 7);
+    };
+
+    // Private
+    dummyVideoPlayer.prototype.videoCompleteHandler = function videoCompleteHandler(event) {
+        Ti.API.info('[Video DUMMY videoCompleteHandler] complete event: ' + JSON.stringify(event));
+        var i;
+
+        if (this.lastComplete + 1 == event.order) {
+            // Real Next
+            Ti.API.info('[Video DUMMY videoCompleteHandler] complete event ' + event.order + ', viewId: ' + id + ', entityId: ' + this.id +', event: ' + JSON.stringify(event));
+            this.lastComplete += 1;
+            for (i = 0; i < this.callbacks.videoComplete.length; i ++) {
+                Ti.API.info('[Video DUMMY videoCompleteHandler] launching HTML callback... ' + this.callbacks.videoComplete[i]);
+                this.callbacks.videoComplete[i](event);
+            }
+            if (this.pendingEvents.videoComplete[event.order + 1] != null) {
+                // Pop waiting event
+                this.videoCompleteHandler(this.pendingEvents.videoComplete[event.order + 1]);
+                delete this.pendingEvents.videoComplete[event.order + 1];
+            }
+        } else if (this.lastComplete + 1 < event.order) {
+            // Push this event
+            Ti.API.info('[Video DUMMY videoCompleteHandler] save this complete event: ' + event.order);
+            this.pendingEvents.videoComplete[event.order] = event;
+        } else {
+            // ORDER ERROR
+            Ti.API.info('[Video DUMMY videoCompleteHandler] complete event order error ' + event.order + ' < ' + this.lastComplete + ', event: ' + JSON.stringify(event));
+            // discard event
+        }
+    };
+
+    dummyVideoPlayer.prototype.syncAddEventListener = function SyncAddEventListener(publicEvent, callback) {
+        Ti.API.info('[Video DUMMY] Sync-addEventListener. event: ' + publicEvent + ', viewId: ' + id + ', entityId: ' + this.id);
+        if (eventHandlers[publicEvent] == null || eventHandlers[publicEvent].length <= 0) {
+            // First event listener for this publicEvent
+            eventHandlers[publicEvent] = [];
+            // Listen the event
+            Ti.App.addEventListener(publicEvent, _invokeEventCallbacks);
+        }
+        eventHandlers[publicEvent].push(callback);
+        Ti.API.info('[Video DUMMY] Sync-addEventListener pre-fire');
+
+        // Subscribe this view to publicEvent
+        Ti.App.fireEvent('APIEvent', {'action': 'addEventListener', 'event': publicEvent, 'viewId': id, 'entityId': this.id, 'dummy': 'video'});
+        Ti.API.info('[Video DUMMY] Sync-addEventListener post-fire');
+    };
+
+    dummyVideoPlayer.prototype.syncRemoveEventListener = function syncRemoveEventListener(publicEvent, callback) {
+        Ti.API.info('[Video DUMMY] Sync-removeEventListener. event:' + publicEvent + ', viewId: ' + id + ', entityId: ' + this.id);
+        var index;
+
+        if (eventHandlers[publicEvent] == null || eventHandlers[publicEvent].length <= 0) {
+            Ti.API.info('[Video DUMMY] Sync-removeEventListener. Error. eventListener not found. eventHandlers[publicEvent]:' + JSON.stringify(eventHandlers[publicEvent]));
+            return false;
+        }
+        Ti.API.info('[Video DUMMY] Sync-removeEventListener. Listener cleaning handler list. eventHandlers[publicEvent]:' + JSON.stringify(eventHandlers[publicEvent]));
+        index = eventHandlers[publicEvent].indexOf(callback);
+        eventHandlers[publicEvent].splice(index, 1);
+
+        // remove listener
+        Ti.API.info('[Video DUMMY] Sync-removeEventListener. Listener Removed. eventHandlers[publicEvent]:' + JSON.stringify(eventHandlers[publicEvent]));
+        Ti.App.removeEventListener(publicEvent, _invokeEventCallbacks);
+
+        // Unsubscribe this view to publicEvent
+        Ti.API.info('[Video DUMMY] Sync-removeEventListener. Unsuscrive this view to event (fireEvent removeEventListener) ' + publicEvent);
+        Ti.App.fireEvent('APIEvent', {'action': 'removeEventListener', 'event': publicEvent, 'viewId': id, 'entityId': this.id, 'dummy': 'video'});
+    };
+
+    /*
+     * play   -> 1
+     * pause  -> 2
+     * stop   -> 3
+     * setURL -> 4
+     */
+    var addVideoProcess = function addVideoProcess(type, options) {
+        Ti.API.info('[Video DUMMY] Add new order to AudioPlayer:' + type);
+        this.pendings.push({'type': type, 'options': options});
+        videoProcess.call(this);
+    };
+
+    var videoProcess = function videoProcess() {
+        Ti.API.info('[Video DUMMY] trying to process. Busy-> ' + this.busy + '; pendings: ' + JSON.stringify(this.pendings));
+        if (!this.busy && this.pendings.length > 0) {
+            var newOrder = this.pendings.shift();
+            Ti.API.info('[Video DUMMY] !!!!!!!!!- processing ' + JSON.stringify(newOrder));
+            this.busy = true;
+            switch(newOrder.type) {
+                case 1:
+                    // PLAY
+                    _genericMethodHandler.call(API, videoPlayCallback.bind(this), 'API.HW.Media.playVideoPlayer', [this.id], null);
+                    break;
+                case 2:
+                    // PAUSE
+                    _genericMethodHandler.call(API, videoPauseCallback.bind(this), 'API.HW.Media.pauseVideoPlayer', [this.id], null);
+                    break;
+                case 3:
+                    // STOP
+                    _genericMethodHandler.call(API, videoStopCallback.bind(this), 'API.HW.Media.stopVideoPlayer', [this.id], null);
+                    break;
+                case 4:
+                    // SETURL
+                    _genericMethodHandler.call(API, videoSetURLCallback.bind(this), 'API.HW.Media.setVideoPlayerURL', [this.id, newOrder.options.url], null);
+                    break;
+                case 5:
+                    // SETBounding
+                    _genericMethodHandler.call(API, videoSetBoundCallback.bind(this), 'API.HW.Media.setVideoPlayerBound', [id, this.id, newOrder.options.pos], null);
+                    break;
+                case 6:
+                    // DESTROY
+                    this.syncRemoveEventListener('videoComplete', this.completeHandler);
+                    _genericMethodHandler.call(API, videoDestroyCallback.bind(this), 'API.HW.Media.destroyVideoPlayer', [this.id], null);
+                    break;
+                case 7:
+                    // FULLSCREEN
+                    _genericMethodHandler.call(API, videoFullScreenCallback.bind(this), 'API.HW.Media.setFullScreen', [this.id], null);
+                    break;
+                case 13:
+                    // AddEventListener
+                    Ti.API.info('[Video DUMMY] addEventListener ' + newOrder.options.publicEvent + ', entityId: ' + this.id);
+                    if (newOrder.options.publicEvent == 'videoComplete') {
+                        this.callbacks.videoComplete.push(newOrder.options.callback);
+                    } else {
+                        Ti.API.info('[Video DUMMY.addEventListener] Error. unknown event: ' + newOrder.options.publicEvent);
+                    }
+                    videoGenericCallback.call(this);
+                    break;
+                case 31:
+                    // RemoveEventListener
+                    Ti.API.info('[Video DUMMY] removeEventListener: ' + newOrder.options.publicEvent);
+                    if (newOrder.options.publicEvent == 'videoComplete') {
+                        this.callbacks.videoComplete.pop(newOrder.options.callback);
+                    } else {
+                        Ti.API.info('[Video DUMMY.addEventListener] Error. unknown event: ' + newOrder.options.publicEvent);
+                    }
+                    videoGenericCallback.call(this);
+                    break;
+                default:
+                    // ERROR
+                    Ti.API.info('[Video DUMMY] Error in AudioPlayerDummy');
+                    break;
+            }
+        }
+    };
+
+    // Video callbacks
+    var videoPlayCallback = function videoPlayCallback() {
+        Ti.API.info('[Video DUMMY] Play Callback');
+        this.state = 'playing';
+        videoGenericCallback.call(this);
+    };
+
+    var videoPauseCallback = function videoPauseCallback() {
+        Ti.API.info('[Video DUMMY] Pause Callback');
+        this.state = 'pausing';
+        videoGenericCallback.call(this);
+    };
+
+    var videoStopCallback = function videoStopCallback() {
+        Ti.API.info('[Video DUMMY] Stop Callback');
+        this.state = 'stopping';
+        videoGenericCallback.call(this);
+    };
+
+    var videoSetBoundCallback = function videoSetBoundCallback() {
+        Ti.API.info('[Video DUMMY] SetBound Callback');
+        videoGenericCallback.call(this);
+    };
+
+    var videoSetURLCallback = function videoSetURLCallback() {
+        Ti.API.info('[Video DUMMY] setURL Callback');
+        videoGenericCallback.call(this);
+    };
+
+    var videoFullScreenCallback = function videoFullScreenCallback() {
+        Ti.API.info('[Video DUMMY] fullScreen Callback');
+        videoGenericCallback.call(this);
+    };
+
+    var videoDestroyCallback = function videoDestroyCallback() {
+        Ti.API.info('[Video DUMMY] ************destroy this VideoPlayer Dummy: ' + this.id + '**********');
+        //delete this;
+    };
+
+    var videoGenericCallback = function videoGenericCallback() {
+        this.busy = false;
+        if (this.pendings.length > 0) {
+            Ti.API.info('[Video DUMMY] busy');
+            videoProcess.call(this);
+        } else {
+            Ti.API.info('[Video DUMMY] free');
+        }
+    };
+    // End Video Dummy
+    
+    
+}());
+
+
+
+
+/*
+ *     (C) Copyright 2012-2013 Universidad Politécnica de Madrid
+ *
+ *     This file is part of Wirecloud Platform.
+ *
+ *     Wirecloud Platform is free software: you can redistribute it and/or
+ *     modify it under the terms of the GNU Affero General Public License as
+ *     published by the Free Software Foundation, either version 3 of the
+ *     License, or (at your option) any later version.
+ *
+ *     Wirecloud is distributed in the hope that it will be useful, but WITHOUT
+ *     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ *     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public
+ *     License for more details.
+ *
+ *     You should have received a copy of the GNU Affero General Public License
+ *     along with Wirecloud Platform.  If not, see
+ *     <http://www.gnu.org/licenses/>.
+ *
+ */
+
+(function () {
+
+    "use strict";
+
+    var id = 1;
+    var prefs = null;
+	var inputs = {};
+	var handlers = new Array();
+	var request = new Array();
+	var requestCallbacks = {};
+	var requestCallbacksKey = 0;
+	var type;
+
+	// Platform definition    
+    Object.defineProperty(window, 'MashupPlatform', {value: {}});
+	Object.defineProperty(window.MashupPlatform, 'setPlatformInfo', {
+        value: function setPlatformInfo(newId, typeP) {
+        	id = newId;
+        	type = typeP;
+        	for(var i = 0; i < request.length; i++){
+        		if(request[i][0]){
+        			Ti.App.fireEvent('makeRequest', {
+        				'id': id, 
+        				'idRequest': request[i][2], 
+        				'typeView':type, 
+        				'url': request[i][0], 
+        				'options': request[i][1]
+        			});
+        		}
+        	}
+            request = new Array();
+        	for(var i = 0; i < handlers.length; i++){
+        		Ti.App.fireEvent('pushEvent', {
+        			'id': id, 
+        			'name': handlers[i][0], 
+        			'dataEvent': handlers[i][1]
+        		});
+        	}
+        	handlers = new Array();
+        	if(prefs !== null){
+        		Ti.App.fireEvent('getPrefs',{
+        			'id': id,
+        			'typeView': type
+        		});
+        	}
+        }
+    });
+    Object.defineProperty(window.MashupPlatform, 'activateCallback', {
+        value: function activateCallback(inputName, data) {
+        	inputs[inputName](data);
+        }
+    });
+    Object.defineProperty(window.MashupPlatform, 'activateRequestCallback', {
+        value: function activateRequestCallback(key, values) {
+            if(values === 'Error'){
+                requestCallbacks[key]["fail"](values);  
+                Ti.API.info('activateRequestCallback id[key]: ' + id + '['+key+'] andResult: failed');  
+            }
+            else {
+                requestCallbacks[key]["succ"](values);
+                Ti.API.info('activateRequestCallback id[key]: ' + id + '['+key+'] andResult: success');  
+            }
+            delete requestCallbacks[key];
+        }
+    });
+	Object.defineProperty(window.MashupPlatform, 'activatePreferenceCallback', {
+		value: function activatePreferenceCallback(values) {
+            prefs(values);
+        }
+	});
+
+    // Wiring Module
+    Object.defineProperty(window.MashupPlatform, 'wiring', {value: {}});
+    Object.defineProperty(window.MashupPlatform.wiring, 'registerCallback', {
+        value: function registerCallback(inputName, callback) {
+            inputs[inputName] = callback;
+        }
+    });
+    Object.defineProperty(window.MashupPlatform.wiring, 'pushEvent', {
+        value: function pushEvent(outputName, data, options) {
+            if(id === null){
+            	handlers.push([outputName, data]);
+            }
+            else Ti.App.fireEvent('pushEvent', {
+            	'id': id, 
+            	'name': outputName, 
+            	'dataEvent': data
+            });
+        }
+    });
+    Object.preventExtensions(window.MashupPlatform.wiring);
+
+	// HTTP Module
+	Object.defineProperty(window.MashupPlatform, 'http', {value: {}});
+ 	Object.defineProperty(window.MashupPlatform.http, 'makeRequest', {
+ 		value: function makeRequest(url, options) {
+            requestCallbacks[requestCallbacksKey] = {
+                succ: options["onSuccess"],
+                fail: options["onFailure"]
+            };
+ 			if(id === null){
+ 				request.push([url, options, requestCallbacksKey]);
+ 				console.log("request.push([url, options, requestCallbacksKey]);");
+ 			}
+ 			else{
+ 				console.log("En fireevent");
+        		Ti.App.fireEvent('makeRequest', {
+        			'id': id, 
+        			'idRequest': requestCallbacksKey, 
+        			'typeView':type, 
+        			'url': url, 
+        			'options': options
+        		});
+ 			}
+            requestCallbacksKey = requestCallbacksKey + 1;
+      	}
+    });
+    Object.preventExtensions(window.MashupPlatform.http);
+   
+    // Preferences Module
+    Object.defineProperty(window.MashupPlatform, 'prefs', {value: {}});
+	Object.defineProperty(window.MashupPlatform.prefs, 'get', {
+		value: function get(key) {
+			return "";
+		}
+	});
+	Object.defineProperty(window.MashupPlatform.prefs, 'registerCallback', {
+		value: function registerCallback(callback) {
+			prefs = callback;
+        }
+	});
+	Object.preventExtensions(window.MashupPlatform.prefs); 
+
+})();
+
+        </script>
+        
+        
+        
+        
+        
+        <script type="text/javascript">
+(function () {
+
+	//TODO: revisar el bridge. A lo mejor en el id de _allowedEventsData deberia poner el tipo de dato que es para realizar la conversion.
+	//TODO: Hacer el setProperty compatible con un array.
+	//TODO: Adaptar el widget a los nuevos métodos para acceder a las propiedades (optimización).
+	//TODO: añadir el getFeatureInfo
+
+    "use strict";
+    
+    var Map = window.API.SW.Map;
+	var MapRegion = {};
+	var Data = {
+		Layers: {},
+		BaseLayer: null
+	};
+	
+	var _routeShowed = null;
+	var _annotationClicked = null;
+	
+	
+	
+	var _self = {};
+	_self.map = null;//TODO: load the map and get its id
+	
+	
+	/**
+	 * Processes a map lonclick event and make the getFeatureInfo of all the added queryable layers at the point.
+	 */
+	_self.getFeatureInfo = function getFeatureInfo(e){
+			
+		var region = MapRegion;
+		
+		var halfMapSizeX = region.longitudeDelta / 2;
+		var halfMapSizeY = region.latitudeDelta / 2;
+		
+		//Calculate the pixel position based on the coordinates (in a supposed 1000x1000 view)
+		var distanceToTopLeftCornerX = Math.abs((region.longitude + halfMapSizeX) - e.longitude);
+		var distanceToTopLeftCornerY = Math.abs((region.latitude - halfMapSizeY) - e.latitude);
+		var pixelX = Math.round((distanceToTopLeftCornerX / region.longitudeDelta) * 1000);
+		var pixelY = Math.round((distanceToTopLeftCornerY / region.latitudeDelta) * 1000);
+			
+		var nLayers = 1; //Start with 1 because of the base layer
+		for(var layerId in Data.Layers)
+			nLayers++;
+		var nLayersReady = 0;
+		var eventInfo = {
+			coordinates: {
+				longitude: e.longitude,
+				latitude: e.latitude
+			},
+			features: []
+		};
+		
+		var checkIsFinished = function(){
+			if(++nLayersReady == nLayers){
+		    	console.log("Procesada ultima layer " + nLayersReady + "/" + nLayers);
+				MashupPlatform.wiring.pushEvent("featureInfoOutput", JSON.stringify(eventInfo));
+		    }
+		};
+		
+		var layers = {};
+		for(var layerId in Data.Layers){
+			layers[layerId] = Data.Layers[layerId].layerInfo;
+		}
+		layers['*_BASELAYER_*'] = Data.BaseLayer;
+
+		for(var layerId in layers){
+
+			var layer = layers[layerId];
+			
+			if(layer != null && layer.queryable == true && layer.service === 'WMS'){
+				
+				//Prepare the getCapabilities request parameters
+				if(layer.projection == "EPSG:4230" || layer.projection == "EPSG:4326" || layer.projection == "EPSG:4258") //miny, minx, maxy, maxx
+					var bbox = [region.latitude - halfMapSizeY, region.longitude - halfMapSizeX, region.latitude + halfMapSizeY, region.longitude + halfMapSizeX];
+				else //minx, miny, maxx, maxy
+					var bbox = [region.longitude - halfMapSizeX, region.latitude - halfMapSizeY, region.longitude + halfMapSizeX, region.latitude + halfMapSizeY];
+					
+					
+				var requestParams = {
+					request: 'GetFeatureInfo',
+					service: 'WMS',
+					version: layer.version,
+					layers: layer.name,
+					query_layers: layer.name,
+					styles: '',
+					format: 'text/plain',
+					bbox: bbox.join(','),
+					width: '1000',
+					height: '1000'
+				};
+				
+				requestParams[(layer.version == '1.3.0' ? 'crs' : 'srs')] = layer.projection;
+				requestParams[(layer.version == '1.3.0' ? 'i' : 'x')] = pixelX;
+				requestParams[(layer.version == '1.3.0' ? 'j' : 'y')] = pixelY;
+
+				var params = [];
+				for(var param in requestParams){
+					params.push(param + '=' + requestParams[param]);
+				}
+				
+				params = params.join('&');
+				var requestUrl = layer.url + '?' + params;
+				console.log(requestUrl);
+				
+				MashupPlatform.http.makeRequest(requestUrl, {
+					method: 'GET',
+					onSuccess: function(layer, response){
+							
+							eventInfo.features.push({
+								text: response.responseText,
+								service: layer.url,
+								layer: layer.name
+							});
+								
+						    checkIsFinished();
+				        	
+					}.bind(null, layer),
+					onException: checkIsFinished,
+					contentType: 'text/plain'
+				});
+				
+				
+				
+			} else {
+				nLayersReady++;
+			}
+					
+		}		
+		
+	};
+	
+	
+	// Event click on Annotation
+	// fireEvent poiSelectedOutput
+	_self.funClickAnnotation = function funClickAnnotation(e){
+		if(e.clicksource == 'pin'){
+			
+			var _anno = e.source;
+			
+			_anno.getProperty(['id', 'title', 'subtitle', 'image', 'latitude', 'longitude'], function(_propResults){
+				
+				var eventData = JSON.stringify({
+					id: _propResults.id,
+					title: _propResults.title,
+					subtitle: _propResults.subtitle,
+					icon: _propResults.image,
+					tooltip: null,
+					coordinates: {
+						latitude: _propResults.latitude,
+						longitude: _propResults.longitude
+					}
+				});
+				
+				MashupPlatform.wiring.pushEvent("poiSelectedOutput", eventData);
+				Ti.API.info("Fired event poiSelectedOutput with data: " + eventData);
+				
+			});
+
+		}
+	};
+	
+	// Event change viewport of Map
+	// fireEvent mapInfoOutput | visiblePoiListOutput
+	_self.funChangeMap = function funChangeMap(e){
+		if(_annotationClicked != null) {
+			_self.map.selectAnnotation(_annotationClicked);
+			_annotationClicked = null;
+		}
+		
+		// SendBounds
+		var _mapRegion = e;
+		if(MapRegion == null || _mapRegion.longitude != MapRegion.longitude || _mapRegion.latitude != MapRegion.latitude 
+				|| _mapRegion.longitudeDelta != MapRegion.longitudeDelta ||  _mapRegion.latitudeDelta != MapRegion.latitudeDelta){
+			
+			MapRegion = _mapRegion;
+		
+			var _mapInfoEventData = {
+				bounds: {
+					upperLeftCorner: {
+						longitude: _mapRegion.longitude - _mapRegion.longitudeDelta/2,
+						latitude: _mapRegion.latitude + _mapRegion.latitudeDelta/2,
+					},
+					lowerRightCorner: {
+						longitude: _mapRegion.longitude + _mapRegion.longitudeDelta/2,
+						latitude: _mapRegion.latitude - _mapRegion.latitudeDelta/2,
+					}
+				},
+				cursorCoordinates: null,
+				focus: null
+			};
+
+			MashupPlatform.wiring.pushEvent("mapInfoOutput", JSON.stringify(_mapInfoEventData));
+			Ti.API.info("Fired event mapInfoOutput with data: " + JSON.stringify(_mapInfoEventData));
+		}
+		
+
+		// SendPoiList
+		var _poiListToSend = [];
+		_self.map.getProperty("annotations", function(_aAnnotations){
+			
+			var _numAnnotations = _aAnnotations.length;
+			var _annonChecked = 0;
+			
+			var _sendPoiList = function _sendPoiList(_poiListToSend){
+				MashupPlatform.wiring.pushEvent("visiblePoiListOutput", JSON.stringify(_poiListToSend));
+				Ti.API.info("Fired event visiblePoiListOutput with data: " + JSON.stringify(_poiListToSend));
+			};
+			
+			for (var i in _aAnnotations) {
+				var _annon = _aAnnotations[i];
+				
+				_annon.getProperty(['latitude', 'longitude', 'title', 'subtitle', 'image'], function(i, _propResults){
+					
+					var _annonLatitude = _propResults.latitude;
+					var _annonLongitude = _propResults.longitude;
+					if (_annonLatitude < (_mapRegion.latitude + _mapRegion.latitudeDelta/2) && _annonLatitude > (_mapRegion.latitude - _mapRegion.latitudeDelta/2) && _annonLongitude < (_mapRegion.longitude + _mapRegion.longitudeDelta/2) && _annonLongitude > (_mapRegion.longitude - _mapRegion.longitudeDelta/2)) {
+							
+						_poiListToSend.push({
+							id : _aAnnotations[i].id,
+							title : _propResults.title,
+							subtitle : _propResults.subtitle,
+							icon : _propResults.image,
+							tooltip : null,
+							coordinates : {
+								latitude : _annonLatitude,
+								longitude : _annonLongitude
+							}
+						});
+						
+						if(++_annonChecked == _numAnnotations){
+							_sendPoiList(_poiListToSend); //Send widget output
+							_poiListToSend = null;
+							_aAnnotations = null;
+							_mapRegion = null;
+							_annon = null;
+						}
+						
+						
+							
+					} else if(++_annonChecked == _numAnnotations){
+						_sendPoiList(_poiListToSend); //Send widget output
+						_poiListToSend = null;
+						_aAnnotations = null;
+						_mapRegion = null;
+						_annon = null;
+					}
+					
+				}.bind(null, i));
+				
+			}
+			
+			
+		});
+		
+
+	};
+	
+	
+	
+	/** @title: handlerInputRoute (Function)
+	  * @parameters: routeString (JSON data {from: poiIdOrigin, to: poiIdDestiny})
+	  *              mode = [ walking | transit | driving ]
+	  * @usage: remove current route if exist
+	  * 		represent route between two annotations 
+	  *         fireEvent routeDescriptionOutput */
+	_self.handlerInputRoute = function handlerInputRoute (routeString, mode){
+		
+		Ti.API.info("Event inputRoute with data: " + routeString);
+		routeString = JSON.parse(routeString);
+		var _pOrigin;
+		var _pDestiny;
+		
+		var _getPoint = function _getPoint(pointData, callback){
+			
+			if(pointData === "MKUSERLOCATION"){
+				Ti.Geolocation.getCurrentPosition(function(e){
+					if(e.error) _point = null;
+					else {
+						_point.latitude = e.latitude;
+						_point.longitude = e.longitude;
+						
+						callback(_point);
+					}
+				});
+			} else {
+				var _anno = checkAnnotation(pointData, function(_anno){
+					
+					if(_anno != null){
+						_anno.getProperty(["latitude", "longitude"], function(_point){
+							callback(_point);
+						});
+						
+					} else {
+						callback(null);
+					}
+					
+				});
+				
+			}
+			
+		};
+		
+		//Get the points of origin and destination and create the route
+		_getPoint(routeString.from, function(_pOrigin){
+			
+			_getPoint(routeString.to, function(_pDestiny){
+			
+				_createRoute(_pOrigin, _pDestiny);
+			
+			});
+			
+		});
+		
+		
+		var _createRoute = function _createRoute(_pOrigin, _pDestiny){
+			
+			if(_pOrigin != null && _pDestiny != null){
+			
+				//Remove the previously showed route
+				_self.handlerCleanRoute();
+				
+				var _conA = getRouteWidgetMap(_pOrigin, _pDestiny, mode, function(values) {
+					if (values !== "Error" && JSON.parse(values).status === "OK") {
+							
+						var eventData = JSON.stringify({data:JSON.parse(values).routes});
+						MashupPlatform.wiring.pushEvent("routeDescriptionOutput", eventData);
+						Ti.API.info("Fired event routeDescriptionOutput with data: "+eventData);
+						
+						_routeShowed = JSON.parse(values).routes[0];
+						var _leg = _routeShowed.legs;
+	            		for(var _i in _leg){
+	            			var _allPoints = new Array();
+	              			for(var step = 0; step < _leg[_i].steps.length; step++){
+	              				_allPoints.push(decodePolyline(_leg[_i].steps[step].polyline.points));	
+	              			} 
+	              			var _pointsRoute = new Array();
+	              			for (var _j = 0; _j < _allPoints.length; _j++){
+	              				_pointsRoute = _pointsRoute.concat(_allPoints[_j]);
+	              			}
+	              			_allPoints = null;
+	              			
+	              			//Create and add the route
+	              			Map.createRoute({
+	              				points: _pointsRoute,
+	              				color: "blue",
+	              				width: 4
+	              			}, function(_route){
+	              				_self.map.addRoute(_route);
+	              				_route = null;
+	              			});
+	              			
+	              			_pointsRoute = null;
+	              			step = null;
+	              			_j = null;
+	            		}
+	            		_i = null;
+	            		_leg = null;
+					}
+					_conA = null;
+				});
+					
+				_pDestiny = null;
+				_pOrigin = null;
+			}
+			
+		};
+		
+	};
+	
+	
+	/** @title: handlerInputRouteStep (Function)
+	  * @parameters: stepNum (number step of routeShowed)
+	  * @usage: show alert with information of route */
+	_self.handlerInputRouteStep = function handlerInputRouteStep (stepNum){
+		Ti.API.info("Event inputRouteStep with data: " + stepNum);
+		if(_routeShowed != null){
+			var _step = _routeShowed.legs[0].steps[stepNum];	
+			_self.map.setLocation({
+				latitude:_step.start_location.lat,
+				longitude:_step.start_location.lng,
+				animate:true,
+    		 	latitudeDelta:0.001953125,
+    		 	longitudeDelta:0.001953125
+		 	});
+		}
+	};
+	
+	
+	/** @title: handlerCleanRoute (Function)
+	  * @usage: remove Route of the Map */
+	_self.handlerCleanRoute = function handlerCleanRoute(){
+		if(_routeShowed != null) {
+			_self.map.removeRoute(_routeShowed);
+			_routeShowed = null;
+		}
+	};
+	
+	
+	/** @title: handlerInputAddress (Function)
+	 *  @parameters: JSON data with the following elements:
+	 * 		• id*: String
+	 * 		• address*: String.
+	 *  @usage: create POI from address for add to Map */
+	_self.handlerInputAddress = function handlerInputAddress (data) {
+		Ti.API.info("Event inputAddress with data: " + data);
+		var _addressData = JSON.parse(data);
+		var _addrString = _addressData.address;
+		
+		//Check that the POI does not exist
+		if(_addressData.id == null){
+			Ti.API.info("[handlerInputAddress] Annotation already exists.");
+			return;
+		}
+		
+		checkAnnotation(_addressData.id, function(_anno){
+			
+			if(_anno != null){
+				Ti.API.info("[handlerInputAddress] Annotation already exists.");
+				return;
+			}			
+			
+			var client = new XMLHttpRequest();
+			client.onreadystatechange = function() {
+				if (client.readyState != 4)  { return; }
+				if (client.status == 200){
+					var json = JSON.parse(client.responseText);
+				
+					if(json.status == "OK" && json.results.length > 0){
+						var _result = json.results[0];
+						Map.createAnnotation({
+			    			id: _addressData.id,
+			    			title: _addrString,
+			        		latitude: _result.geometry.location.lat,
+			        		longitude: _result.geometry.location.lng
+			    		}, function(_poi){
+			    			_poi.addEventListener('click', _self.funClickAnnotation);
+			    			_self.map.addAnnotation(_poi);
+			    			_poi = null;
+			    		});
+			    		
+					}
+					
+					data = null;
+					json = null;
+					_result = null;
+		    		_addressData = null;
+		    		_addrString = null;
+				}
+			};
+			client.open("GET", 'http://maps.googleapis.com/maps/api/geocode/json?address=' + _addrString);
+			client.send();
+			
+		});
+		
+		
+	};
+	
+	/** @title: handlerInputPoi (Function)
+	  * @parameters: data (JSON data POI) with the following elements:
+	  * 	• id*.
+	  * 	• title.
+	  * 	• subtitle.
+	  * 	• icon: Image URL.
+	  * 	• tooltip:
+	  * 	• coordinates*:
+	  * 		◦ longitude.
+	  * 		◦ latitude.
+	  *  callback: optional. Called when finished.
+	  * @usage: add POI to Map */
+	_self.handlerInputPoi = function handlerInputPoi(data, callback){
+		Ti.API.info("Event inputPoi with data: " + data);
+		var _poiData = JSON.parse(data);
+		
+		checkAnnotation(_poiData.id, function(_pA){
+			
+			//Edit POI (only id is compulsory)
+			if(_pA !== null){
+				
+				if(_poiData.title != null)
+					_pA.setProperty("title", _poiData.title);
+					
+				if(_poiData.subtitle != null)
+					_pA.setProperty("subtitle", _poiData.subtitle);
+					
+				if(_poiData.icon != null)
+					_pA.setProperty("image", _poiData.icon);
+					
+				if(_poiData.coordinates != null && _poiData.coordinates.latitude != null)
+					_pA.setProperty("latitude", _poiData.coordinates.latitude);
+					
+				if(_poiData.coordinates != null && _poiData.coordinates.longitude != null)
+					_pA.setProperty("longitude", _poiData.coordinates.longitude);
+					
+				if(typeof(callback) == "function")
+					callback();
+	
+				
+			//Create POI
+			} else {
+				Map.createAnnotation({
+					id: _poiData.id,
+					title: _poiData.title,
+					subtitle: _poiData.subtitle,
+					latitude: _poiData.coordinates.latitude,
+					longitude: _poiData.coordinates.longitude,
+					image: _poiData.icon
+					
+				}, function(_pA){
+					_pA.addEventListener('click', _self.funClickAnnotation);
+					_self.map.addAnnotation(_pA);
+					_pA = null;
+					
+					if(typeof(callback) == "function")
+						callback();
+				});
+				
+			}
+			
+			_pA = null;
+		}); 
+		
+		
+	};
+	
+	/** @title: handlerInputDeletePoi (Function)
+	  * @parameters: data (JSON data POI). Contains the following elements:
+	  * 	• id*.
+	  * @usage: delete POI in Map */
+	_self.handlerInputDeletePoi = function handlerInputDeletePoi(data){
+		Ti.API.info("Event inputDeletePoi with data: " + data);
+		var _poiData = JSON.parse(data);
+		
+		checkAnnotation(_poiData.id, function(_pA){
+			if(_pA !== null){
+				_pA.removeEventListener('click', _self.funClickAnnotation);
+				_self.map.removeAnnotation(_pA);
+			}
+				
+			_poiData = null;
+			_pA = null;
+		}); 
+		
+	};
+	
+	/** @title: handlerInputPoiCenter (Function)
+	  * @parameters: data (JSON data POI)
+	  * @usage: usage POI for center Map */
+	_self.handlerInputPoiCenter = function handlerInputPoiCenter(data){
+		Ti.API.info("Event inputPoiCenter with data: " + data);
+		_self.handlerInputPoi(data, function(){
+			_self.handlerInputSelectPoi(data);
+		});
+		
+	};
+	
+	/** @title: handlerInputSelectPoi (Function)
+	  * @parameters: poiString (JSON data POI)
+	  * @usage: center Map with poi */
+	_self.handlerInputSelectPoi = function handlerInputSelectPoi(poiString){
+		Ti.API.info("Event inputSelectPoi with data: " + poiString);
+		var _poi = JSON.parse(poiString);
+		
+		checkAnnotation(_poi.id, function(_pA){
+			if(_pA !== null) {
+				_annotationClicked = _pA;
+				_self.map.selectAnnotation(_pA);
+				
+				_pA.getProperty(["latitude", "longitude"], function(_point){
+						
+						_self.map.setLocation({
+							latitude: _point.latitude,
+							longitude: _point.longitude,
+							latitudeDelta: MapRegion.latitudeDelta,
+							longitudeDelta: MapRegion.longitudeDelta,
+							animate: true
+						});
+						
+						_point = null;
+					
+				});
+				
+				_pA = null;
+	    	}
+			
+		});
+		
+		_poi = null;
+		
+	};
+	
+	/**
+	 * Allows to synchronize the view of different maps.
+	 * @params Object with the following elements:
+	 * 	• bounds*.
+	 * 		◦ upperLeftCorner:
+	 * 			▪ Longitude.
+	 * 			▪ Latitude.
+	 * 		◦ lowerRightCorner:
+	 * 			▪ Longitude.
+	 * 			▪ Latitude.
+	 * 	• cursorCoordinates*: not used in this case (there is no mouse)
+	 * 		◦ Longitude.
+	 * 		◦ Latitude.
+	 * 	• focus*: True or False. Not used in this case (there is no mouse)	
+	 */
+	_self.handlerMapInfoInput = function handlerMapInfoInput (data) {
+		Ti.API.info("Event MapInfoInput with data: " + data);
+		var mapInfoData = JSON.parse(data);
+		
+		var latitude = (parseFloat(mapInfoData.bounds.upperLeftCorner.latitude) + parseFloat(mapInfoData.bounds.lowerRightCorner.latitude)) / 2;
+		var longitude = (parseFloat(mapInfoData.bounds.upperLeftCorner.longitude) + parseFloat(mapInfoData.bounds.lowerRightCorner.longitude)) / 2;
+		var changeLocationData = {
+			latitude: latitude, 
+			longitude: longitude, 
+			latitudeDelta: Math.abs(parseFloat(mapInfoData.bounds.upperLeftCorner.latitude) - parseFloat(mapInfoData.bounds.lowerRightCorner.latitude)), 
+			longitudeDelta: Math.abs(parseFloat(mapInfoData.bounds.upperLeftCorner.longitude) - parseFloat(mapInfoData.bounds.lowerRightCorner.longitude)), 
+			animate: false
+		};
+		
+		_self.map.setLocation(changeLocationData);		
+		
+	};
+	
+	
+	/**
+	 * Add a service. In this case, open a windows to add a layer with the service selected.
+	 * @params JSON data with the following elements:
+	 * 		• action*. String. The action to be accomplished: 'addLayer' | 'setBaseLayer' | 'removeLayer'
+	 * 		• data*. Object. Depending on the action, it can contain different values.
+	 * 			ADDLAYER
+	 * 			• id. An id to identify the layer.
+	 * 			• service. String. Currently, only 'WMS' is supported.
+	 * 			• version. String. Currently, only '1.1.1' and '1.3.0' are supported.
+	 * 			• url. Url of the map service.
+	 * 			• name: String. Name of the layer.
+	 * 			• projection. String.
+	 * 			• zIndex. Integer,
+	 * 			• opacity. Integer. [0, 100]
+	 * 			• queryable. Boolean. If the layer has support for the getFeatureInfo request.
+	 * 
+	 * 			SETBASELAYER
+	 * 			Two behaviors depending on whether id is given (a predefined layer) or not (a new layer).
+	 * 				Predefined layer:
+	 * 					• id. String. Constant representing the predefined layer: 'GOOGLE_STANDARD' | 'GOOGLE_SATELLITE' | 'GOOGLE_HYBRID'
+	 * 				New layer:
+	 * 					• service. String. Currently, only 'WMS' is supported.
+	 * 					• version. String. Currently, only '1.1.1' and '1.3.0' are supported.
+	 * 					• url. Url of the map service.
+	 * 					• name: String. Name of the layer.
+	 * 					• projection. String.
+	 * 					• queryable. Boolean. If the layer has support for the getFeatureInfo request. 
+	 * 
+	 * 			REMOVELAYER
+	 * 			• id. An id to identify the layer to be removed (set in the addLayer action). Base layers can not be removed with this method.
+	 * 			
+	 */
+	_self.handlerLayerInfoInput = function  handlerLayerInfoInput (data) {
+		Ti.API.info("Event LayerInfoInput with data: " + data);
+		var _layerInfo = JSON.parse(data);
+		
+		switch(_layerInfo.action){
+			case 'addLayer':
+				handleAddLayer(_layerInfo.data);
+				break;
+			case 'setBaseLayer':
+				handleSetBaseLayer(_layerInfo.data);
+				break;
+			case 'removeLayer':
+				handleRemoveLayer(_layerInfo.data);
+				break;
+			default:
+				console.log("Invalid action for LayerInfoInput");
+		}
+		
+	};
+	 
+	 
+	/*
+	 * HELPER METHODS 
+	 */
+	
+	/** @title: decodePolyline (Function)
+	  * @parameters: pl (Encoded String Route) 
+	  * @usage: return Array of Coordinates 
+	  */
+	var decodePolyline = function decodePolyline(pl){
+			var encoded = pl;
+    		var index = 0;
+    		var array = new Array();
+    		var lat = 0;
+    		var lng = 0;
+    		while (index < encoded.length) {
+        		var b;
+        		var shift = 0;
+        		var result = 0;
+        		do {
+            		b = encoded.charCodeAt(index++) - 63;
+            		result |= (b & 0x1f) << shift;
+            		shift += 5;
+        		} while (b >= 0x20);
+        		lat += ((result & 1) ? ~(result >> 1) : (result >> 1));
+        		shift = 0;
+        		result = 0;
+        		do {
+            		b = encoded.charCodeAt(index++) - 63;
+            		result |= (b & 0x1f) << shift;
+            		shift += 5;
+        		} while (b >= 0x20);
+        		lng += ((result & 1) ? ~(result >> 1) : (result >> 1));
+        		array.push({latitude:lat * 0.00001,longitude:lng * 0.00001});
+    		}
+    		return array;
+		};		
+	
+	/** @title: getRouteWidgetMap (Function)
+	 *  @param: pointOrigin, pointDestiny, mode, callback_function
+	 *  @usage: create HTTP client for Create Route */
+	var getRouteWidgetMap = function getRouteWidgetMap(pointOrigin, pointDestiny, mode, callback_function) {
+		var url = "http://maps.googleapis.com/maps/api/directions/json?origin=" + pointOrigin.latitude + "," + pointOrigin.longitude + 
+					"&destination=" + pointDestiny.latitude + "," + pointDestiny.longitude + 
+					"&sensor=false&optimize=true&mode=" + mode/* + 
+					"&language=" + Ti.Locale.currentLanguage*/;
+					
+		var client = new XMLHttpRequest();
+		client.onreadystatechange = function(){
+			if (client.readyState != 4)  { return; }
+			if (client.status == 200)
+		    	callback_function(client.responseText);
+		   	else
+		   		callback_function("Error");
+		};
+		client.open("GET", url);
+		client.send();
+	};
+
+	
+	/** @title: checkAnnotation (Function)
+	  * @parameters: id of poiToCheck
+	  * @usage: return Annotation into the map or null if not exist */
+	var checkAnnotation = function checkAnnotation(annotationId, callback){
+		_self.map.getProperty("annotations", function(_aAnnotations){
+			
+			if(!_aAnnotations){
+				callback(null);
+			}
+			
+			var found = false;
+			for(var i in _aAnnotations){
+				if(_aAnnotations[i].id === annotationId){
+					callback(_aAnnotations[i]);
+					found = true;
+					break;
+				}
+			}
+			
+			_aAnnotations = null;
+			
+			if(!found)
+				callback(null);
+			
+		});
+
+	};
+	
+	
+	/**
+	 * 
+	 * @param {Object} element Map, Annotaton, Polygon...
+	 * @param {Object} propertyList Array with the list of properties to retrieve.
+	 * @param {Object} callback Function that will be called when all the properties are retrieved.
+	 * @param {Object} results Optional. Object where the results will be added.
+	 */
+	var getMultiProperty = function getMultiProperty(element, propertyList, callback, results){
+		
+		if(results == null)
+			results = {};
+		
+		if(propertyList.length > 0){
+			var _prop = propertyList.pop();
+			element.getProperty(_prop, function(_val){
+				results[_prop] = _val;
+				getMultiProperty(element, propertyList, callback, results);
+			});
+		} else 
+			callback(results);
+		
+	};
+	
+	
+	/**
+	 * Handles the addLayer action.
+ 	 * @param {Object} _layerData The data property of the info given as input of the widget for the addLayer action.
+	 */
+	var handleAddLayer = function handleAddLayer(_layerData){
+		
+		if(_layerData != null && _layerData.id != null && Data.Layers[_layerData.id] == null){
+			
+			var _layerType = getLayerType(_layerData.service, _layerData.version);
+			
+			if(_layerType != null){
+				
+				var layer = Map.createLayer({
+					baseUrl: _layerData.url,
+					type: _layerType,
+					name: _layerData.name,
+					srs: _layerData.projection,
+					zIndex: _layerData.zIndex,
+					visible: true,
+					opacity: _layerData.opacity,
+					format: Map.FORMAT_PNG
+				}, function(layer){
+					
+					Data.Layers[_layerData.id] = {
+						layerInfo: _layerData,
+						layer: layer
+					};
+					_self.map.addLayer(layer);
+					
+				});
+				
+				
+			} else {
+				console.log("The type of service of the layer is not supported.");
+			}
+			
+		}
+		
+	};
+	
+	
+	
+	/**
+	 * Handles the setBaseLayer action.
+ 	 * @param {Object} _layerData The data property of the info given as input of the widget for the setBaseLayer action.
+	 */
+	var handleSetBaseLayer = function handleSetBaseLayer(_layerData){
+		
+		// Is a Google layer
+		if(_layerData != null && _layerData.id != null) {
+			
+			var _layerType = null;
+			switch(_layerData.id){
+				case 'GOOGLE_STANDARD':
+					_layerType = Map.STANDARD_TYPE;
+					break;
+				case 'GOOGLE_SATELLITE':
+					_layerType = Map.SATELLITE_TYPE;
+					break;
+				case 'GOOGLE_HYBRID':
+					_layerType = Map.HYBRID_TYPE;
+					break;
+				default:
+					console.log("Invalid base layer.");
+					return; //Stop execution
+			}
+			
+			_self.map.setBaseLayer(_layerType);
+			Data.BaseLayer = _layerType;
+			
+		} else if(_layerData != null) { //Is a non predefined layer
+			
+			var _layerType = getLayerType(_layerData.service, _layerData.version);
+			
+			if(_layerType != null){
+				
+				var layer = Map.createLayer({
+					baseUrl: _layerData.url,
+					type: _layerType,
+					name: _layerData.name,
+					srs: _layerData.projection,
+					visible: true,
+					format: Map.FORMAT_JPEG
+				}, function(layer){
+					
+					_self.map.setBaseLayer(layer);
+					Data.BaseLayer = _layerData;
+					
+				});
+				
+				
+			} else {
+				console.log("The type of service of the layer is not supported.");
+			}
+			
+			
+		}
+		
+		
+	};
+	
+	/**
+	 * Handles the removeLayer action.
+ 	 * @param {Object} _layerData The data property of the info given as input of the widget for the removeLayer action.
+	 */
+	var handleRemoveLayer = function handleRemoveLayer(_layerData){
+		
+		if(_layerData != null && _layerData.id != null && Data.Layers[_layerData.id] != null) {
+			
+			_self.map.removeLayer(Data.Layers[_layerData.id].layer);
+			
+			delete Data.Layers[_layerData.id].layer;
+			delete Data.Layers[_layerData.id].layerInfo;
+			delete Data.Layers[_layerData.id];
+			
+		}
+		
+	};
+	
+	
+	/**
+	 * Get the type of service of the layer.
+	 * @param {String} _service Type of service (WMS, ...).
+	 * @param {String} _version Version of the service.
+	 * @return {Integer} The constant to be used with the map to represent that type of service.
+	 */
+	var getLayerType = function getLayerType(_service, _version){
+		
+		if(_service === 'WMS'){
+				
+			var _layerType = null;
+			switch(_version){
+				case '1.1.1':
+					_layerType = Map.LAYER_TYPE_WMS_1_1_1;
+					break;
+				case '1.3.0':
+					_layerType = Map.LAYER_TYPE_WMS_1_3_0;
+					break;
+				default:
+					break;
+			}
+			
+			return _layerType;
+		}
+		
+	};
+	
+	
+	console.log("-------------------------------------");
+	console.log("-------------- PRUEBAS --------------");
+	console.log("-------------------------------------");
+	
+	
+	var initializeMap = function initializeMap(){
+		
+		console.log("-------------- EJECUTANDO CREATE MAP --------------");
+		Map.createMap({
+			userLocation: true,
+	        animate: true,
+	        region: { //Spain
+	        	latitude: 40.87365, 
+	        	longitude: -4.20689, 
+	        	latitudeDelta: 0.2, 
+	        	longitudeDelta: 0.2 
+	    	}, 
+	        enableZoomControls: false,
+	        userLocationButton: false
+		}, function(_map){
+			console.log("-------------- EN CALLBACK DE CREATE MAP --------------");
+			_self.map = _map;
+			
+			//Display the map
+			_self.map.addBound(1, {
+				height: '90%',
+				width: '90%',
+				top: '10px',
+	        	left: '10px'
+			});
+			
+			_self.map.addEventListener('regionchanged', _self.funChangeMap);
+			_self.map.addEventListener('longclick', _self.getFeatureInfo);
+			
+			//Now, register all the widget inputs
+			MashupPlatform.wiring.registerCallback('routeInput', _self.handlerInputRoute);
+			MashupPlatform.wiring.registerCallback('routeStepInput', _self.handlerInputRouteStep);
+			MashupPlatform.wiring.registerCallback('addressInput', _self.handlerInputAddress);
+			MashupPlatform.wiring.registerCallback('poiInput', _self.handlerInputPoi);
+			MashupPlatform.wiring.registerCallback('deletePoiInput', _self.handlerInputDeletePoi);
+			MashupPlatform.wiring.registerCallback('poiInputCenter', _self.handlerInputPoiCenter);
+			MashupPlatform.wiring.registerCallback('selectPoiInput', _self.handlerInputSelectPoi);
+			MashupPlatform.wiring.registerCallback('mapInfoInput', _self.handlerMapInfoInput);
+			MashupPlatform.wiring.registerCallback('layerInfoInput', _self.handlerLayerInfoInput);
+	
+			
+			setTimeout(function(){
+				
+				console.log("-------------- INICIANDO BATERÍA DE PRUEBAS --------------");
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 1");
+					
+					//var data = '{"id":"id001","zip":"28035","city":"Madrid","country":"Spain"}';
+					var data = '{"id":"id001","address":"Collado Mostajo 77, Madrid, España"}';
+					
+					_self.handlerInputAddress(data);
+					
+					Ti.API.info("Fin de PRUEBA 1");
+				}, 7000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 2");
+					
+					var data = '{"bounds":{"upperLeftCorner":{"longitude":"-37.027709802444","latitude":"52.901184042944"},"lowerRightCorner":{"longitude":"26.868774644683","latitude":"26.797668388478"}},"cursorCoordinates":null,"focus":null}';
+					_self.handlerMapInfoInput(data);
+					
+					Ti.API.info("Fin de PRUEBA 2");
+				}, 10000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 3");
+					
+					var data = '{"id":"id002", "title": "Este es un marcador", "coordinates": {"longitude":"-3.81159313310727","latitude":"40.5388818129467"}}';
+					_self.handlerInputPoi(data);
+					
+					Ti.API.info("Fin de PRUEBA 3");
+				}, 15000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 4");
+					
+					var data = '{"id":"id002", "title": "Este es EL marcador"}';
+					_self.handlerInputPoi(data);
+					
+					Ti.API.info("Fin de PRUEBA 4");
+				}, 20000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 6");
+					
+					var data = '{"id":"id002"}';
+					_self.handlerInputDeletePoi(data);
+					
+					Ti.API.info("Fin de PRUEBA 6");
+				}, 25000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 6 - bis");
+					
+					var data = '{"id":"id001"}';
+					_self.handlerInputDeletePoi(data);
+					
+					Ti.API.info("Fin de PRUEBA 6 - bis");
+				}, 30000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 7");
+					
+					var data = '{"id":"id003", "title": "Marcador de origen", "coordinates": {"longitude":"-3.81159313310727","latitude":"40.5388818129467"}}';
+					_self.handlerInputPoiCenter(data);
+					
+					var data = '{"id":"id004", "title": "Marcador de destino", "coordinates": {"longitude":"-2.81159313310727","latitude":"41.5388818129467"}}';
+					_self.handlerInputPoiCenter(data);
+					
+					Ti.API.info("Fin de PRUEBA 7");
+				}, 40000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 8");
+					
+					var data = '{"from": "id003", "to": "id004"}';
+					
+					_self.handlerInputRoute(data);
+					
+					Ti.API.info("Fin de PRUEBA 8");
+				}, 50000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 9 - Añadir una capa");
+					
+					var data = '{"action":"addLayer","data":{"id":"layer1","service":"WMS","version":"1.3.0","url":"http://www.ign.es/wms-inspire/ign-base","name":"PS.ProtectedSite","projection":"EPSG:4326","zIndex":8,"opacity":80,"queryable":true}}';
+					_self.handlerLayerInfoInput(data);
+					
+					Ti.API.info("Fin de PRUEBA 9");
+					
+				}, 60000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 10 - Crear una capa base");
+					
+					var data = '{"action":"setBaseLayer","data":{"service":"WMS","version":"1.3.0","url":"http://www.ign.es/wms-inspire/ign-base","name":"IGNBaseTodo","projection":"EPSG:4326","queryable":true}}';
+					_self.handlerLayerInfoInput(data);
+					
+					Ti.API.info("Fin de PRUEBA 10");
+					
+				}, 70000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 11 - Cambiar la capa base a una de Google");
+					
+					var data = '{"action":"setBaseLayer","data":{"id":"GOOGLE_HYBRID"}}';
+					_self.handlerLayerInfoInput(data);
+					
+					Ti.API.info("Fin de PRUEBA 11");
+					
+				}, 80000);
+				
+				setTimeout(function(){
+					Ti.API.info("Ejecutando PRUEBA 12 - Borrar una capa");
+					
+					var data = '{"action":"removeLayer","data":{"id":"layer1"}}';
+					_self.handlerLayerInfoInput(data);
+					
+					Ti.API.info("Fin de PRUEBA 12");
+					
+					console.log("-------------- FINALIZADA BATERÍA DE PRUEBAS --------------");
+				}, 90000);
+				
+				
+				
+			}, 5000); //END TEST
+			
+		});
+	};
+	
+	_self.clearObject = function clearObject(){
+		
+		_self.map.removeEventListener('regionChanged', _self.funChangeMap);
+		_self.map.removeEventListener('longclick', _self.funChangeMap);
+
+		delete _self['getFeatureInfo'];
+		delete _self['funChangeMap'];
+		delete _self['funClickAnnotation'];
+		delete _self['handlerChangeTypeMap'];
+		delete _self['handlerInputRoute'];
+		delete _self['handlerInputRouteStep'];
+		delete _self['handlerCleanRoute'];
+		delete _self['handlerInputAddress'];
+		delete _self['handlerInputPoi'];
+		delete _self['handlerInputDeletePoi'];
+		delete _self['handlerInputPoiCenter'];
+		delete _self['handlerInputSelectPoi'];
+		delete _self['handlerMapInfoInput'];
+		delete _self['handlerLayerInfoInput'];
+
+		decodePolyline = null;
+		getRouteWidgetMap = null;
+		checkAnnotation = null;
+		getMultiProperty = null;
+		initializeMap = null;
+		handleAddLayer = null;
+		handleRemoveLayer = null;
+		handleSetBaseLayer = null;
+		
+	};
+	
+	
+	Map.isMapAvailable(function(_available){
+		if(_available){
+			initializeMap();
+		} else {
+			alert("El servicio de mapas no está disponible");
+		}
+	});
+	
+	
+	
+	
+	
+    
+}());
+
+
+
+</script>
+    </head>
+    <body>
+        <div id="map_canvas">Aqui deberia ir el mapa</div>
+    </body>
+</html>
+
