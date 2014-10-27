@@ -1,150 +1,35 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Template xmlns="http://wirecloud.conwet.fi.upm.es/ns/template#">
-    <Catalog.ResourceDescription>
-        <Vendor>CoNWeT</Vendor>
-        <Name>map-viewer</Name>
-        <DisplayName>Map Viewer</DisplayName>
-        <Version>3.0.0</Version>
-        <Author>AlejandroVera</Author>
-        <Mail>alejandro.vera@centeropenmiddleware.com</Mail>
-        <Description>Place things on map! Explore the world, trace routes...</Description>
-        <ImageURI>images/catalogue.png</ImageURI>
-        <iPhoneImageURI>images/cataloguePhone.png</iPhoneImageURI>
-        <WikiURI>http://conwet.fi.upm.es/docs/display/wirecloud/Map+Viewer</WikiURI>
-    </Catalog.ResourceDescription>
-    <Platform.Preferences>
-        <Preference
-            name="radiusPreference"
-            type="text"
-            description="When you click in a mark you will see a circle with this radius"
-            label="Mark shadow radius"
-            default="10">
-        </Preference>
-        <Preference
-            name="centerPreference"
-            type="text"
-            description="Location or decimal coordinates where map will be focus at start. Values like 'New York' or '52, 5' are valid."
-            label="Initial Location"
-            default="Santander">
-        </Preference>
-        <Preference
-            name="zoomPreference"
-            type="text"
-            description="Zoom level when the map is centered. From 1 to 22, where '1' represents the furthest level and '22' the maximum zoom level."
-            label="Zoom Level"
-            default="13">
-        </Preference>
-     </Platform.Preferences>
-    <Platform.StateProperties>
-    </Platform.StateProperties>
-    <Platform.Wiring>
-		<InputEndpoint
-            name="routeInput"
-            type="text"
-            description="Google Maps route to be displayed on the map."
-            label="Route"
-            action_label="Map Viewer Route"
-            friendcode="route"/>
-		<InputEndpoint
-            name="routeStepInput"
-            type="text"
-            description="Detailed Step of a route. It may be connected with Route Description widget."
-            label="Route Step"
-            action_label="Map Viewer Details Steps Route"
-            friendcode="detailStep"/>
-        <InputEndpoint
-            name="addressInput"
-            type="text"
-            description="Address to be displayed on the map."
-            label="Address"
-            action_label="Map Viewer Address"
-            friendcode="address"/>
-        <InputEndpoint
-            name="poiInput"
-            type="text"
-            description="Insert or update a Point of Interest."
-            label="Insert/Update PoI"
-            action_label="Map Viewer Insert/Update PoI"
-            friendcode="poi"/>
-        <InputEndpoint
-            name="deletePoiInput"
-            type="text"
-            description="Delete a Point of Interest."
-            label="Delete PoI"
-            action_label="Map Viewer Delete PoI"
-            friendcode="poi"/>
-        <InputEndpoint
-            name="poiInputCenter"
-            type="text"
-            description="Insert or update a PoI and change the viewport centering the map on it"
-            label="Insert/Update Centered PoI"
-            action_label="Map Viewer Centered PoI"
-            friendcode="poi"/>
-        <InputEndpoint
-            name="selectPoiInput"
-            type="text"
-            description="Select a PoI and change the viewport centering the map on it"
-            label="Select PoI"
-            action_label="Map Viewer Select PoI"
-            friendcode="poi"/>
-		<InputEndpoint
-            name="mapInfoInput"
-            type="text"
-            description="Allows to synchronize maps."
-            label="Map Info"
-            action_label="Map Info"
-            friendcode="mapInfo"/>
-		<InputEndpoint
-            name="layerInfoInput"
-            type="text"
-            description="Add or remove layers to the map, in addition to changing its base layer."
-            label="Layer Info"
-            action_label="Layer Info"
-            friendcode="layerInfo"/>
-			
-       
-		<OutputEndpoint
-            name="featureInfoOutput"
-            type="text"
-            description="Sends the info of a GetFeatureInfo of the point clicked"
-            label="Feature Info"
-            friendcode="featureInfo"/>
-		<OutputEndpoint
-            name="poiSelectedOutput"
-            type="text"
-            description="A PoI has been selected on the map"
-            label="PoI selected"
-            action_label="Point of Interest"
-            friendcode="poi"/>
-		<OutputEndpoint
-            name="mapInfoOutput"
-            type="text"
-            description="Allows to synchronize maps."
-            label="Map Info"
-            action_label="Map Info"
-            friendcode="mapInfo"/>
-		<OutputEndpoint
-            name="visiblePoiListOutput"
-            type="text"
-            description="Change PoI list inside the viewport"
-            label="PoI visibility change"
-            action_label="PoI visibility change"
-            friendcode="poiList"/>
-		<OutputEndpoint
-            name="routeDescriptionOutput"
-            type="text"
-            description="Route description step by step. It may be connected with Route Description widget."
-            label="Route Description"
-            friendcode="routeDescription"/>
-    </Platform.Wiring>
-
-    <Platform.Link>
-        <XHTML
-            href="index.html"
-            contenttype="text/html"
-            cacheable="false"
-            use-platform-style="false"/>
-    </Platform.Link>
-
-    <Platform.Rendering width="7" height="50"/>
-</Template>
+<?xml version='1.0' encoding='UTF-8'?>
+<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer" version="3.0.0">
+  <details>
+    <title>Map Viewer</title>
+    <email>alejandro.vera@centeropenmiddleware.com</email>
+    <image>images/catalogue.png</image>
+    <smartphoneimage>images/cataloguePhone.png</smartphoneimage>
+    <description>Place things on map! Explore the world, trace routes...</description>
+    <doc>http://conwet.fi.upm.es/docs/display/wirecloud/Map+Viewer</doc>
+    <authors>AlejandroVera</authors>
+  </details>
+  <preferences>
+    <preference name="radiusPreference" type="text" label="Mark shadow radius" description="When you click in a mark you will see a circle with this radius" default="10"/>
+    <preference name="centerPreference" type="text" label="Initial Location" description="Location or decimal coordinates where map will be focus at start. Values like 'New York' or '52, 5' are valid." default="Santander"/>
+    <preference name="zoomPreference" type="text" label="Zoom Level" description="Zoom level when the map is centered. From 1 to 22, where '1' represents the furthest level and '22' the maximum zoom level." default="13"/>
+  </preferences>
+  <wiring>
+    <outputendpoint name="featureInfoOutput" type="text" label="Feature Info" description="Sends the info of a GetFeatureInfo of the point clicked" friendcode="featureInfo"/>
+    <outputendpoint name="poiSelectedOutput" type="text" label="PoI selected" description="A PoI has been selected on the map" friendcode="poi"/>
+    <outputendpoint name="mapInfoOutput" type="text" label="Map Info" description="Allows to synchronize maps." friendcode="mapInfo"/>
+    <outputendpoint name="visiblePoiListOutput" type="text" label="PoI visibility change" description="Change PoI list inside the viewport" friendcode="poiList"/>
+    <outputendpoint name="routeDescriptionOutput" type="text" label="Route Description" description="Route description step by step. It may be connected with Route Description widget." friendcode="routeDescription"/>
+    <inputendpoint name="routeInput" type="text" label="Route" description="Google Maps route to be displayed on the map." actionlabel="Map Viewer Route" friendcode="route"/>
+    <inputendpoint name="routeStepInput" type="text" label="Route Step" description="Detailed Step of a route. It may be connected with Route Description widget." actionlabel="Map Viewer Details Steps Route" friendcode="detailStep"/>
+    <inputendpoint name="addressInput" type="text" label="Address" description="Address to be displayed on the map." actionlabel="Map Viewer Address" friendcode="address"/>
+    <inputendpoint name="poiInput" type="text" label="Insert/Update PoI" description="Insert or update a Point of Interest." actionlabel="Map Viewer Insert/Update PoI" friendcode="poi"/>
+    <inputendpoint name="deletePoiInput" type="text" label="Delete PoI" description="Delete a Point of Interest." actionlabel="Map Viewer Delete PoI" friendcode="poi"/>
+    <inputendpoint name="poiInputCenter" type="text" label="Insert/Update Centered PoI" description="Insert or update a PoI and change the viewport centering the map on it" actionlabel="Map Viewer Centered PoI" friendcode="poi"/>
+    <inputendpoint name="selectPoiInput" type="text" label="Select PoI" description="Select a PoI and change the viewport centering the map on it" actionlabel="Map Viewer Select PoI" friendcode="poi"/>
+    <inputendpoint name="mapInfoInput" type="text" label="Map Info" description="Allows to synchronize maps." actionlabel="Map Info" friendcode="mapInfo"/>
+    <inputendpoint name="layerInfoInput" type="text" label="Layer Info" description="Add or remove layers to the map, in addition to changing its base layer." actionlabel="Layer Info" friendcode="layerInfo"/>
+  </wiring>
+  <contents src="index.html" cacheable="false"/>
+  <rendering height="50" width="7"/>
+</widget>
