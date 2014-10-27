@@ -5,8 +5,8 @@
         <Name>map-viewer</Name>
         <DisplayName>Map Viewer</DisplayName>
         <Version>3.0.0</Version>
-        <Author>sblanco</Author>
-        <Mail>sblanco@conwet.com</Mail>
+        <Author>AlejandroVera</Author>
+        <Mail>alejandro.vera@centeropenmiddleware.com</Mail>
         <Description>Place things on map! Explore the world, trace routes...</Description>
         <ImageURI>images/catalogue.png</ImageURI>
         <iPhoneImageURI>images/cataloguePhone.png</iPhoneImageURI>
@@ -109,12 +109,6 @@
             description="Sends the info of a GetFeatureInfo of the point clicked"
             label="Feature Info"
             friendcode="featureInfo"/>
-		<OutputEndpoint
-            name="legendUrlOutput"
-            type="text"
-            description="Gets the url of the legend"
-            label="Legend url"
-            friendcode="url"/>
 		<OutputEndpoint
             name="poiSelectedOutput"
             type="text"

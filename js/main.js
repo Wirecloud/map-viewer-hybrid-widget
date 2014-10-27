@@ -52,7 +52,6 @@
 		
 		var checkIsFinished = function(){
 			if(++nLayersReady == nLayers){
-		    	console.log("Procesada ultima layer " + nLayersReady + "/" + nLayers);
 				MashupPlatform.wiring.pushEvent("featureInfoOutput", JSON.stringify(eventInfo));
 		    }
 		};
@@ -130,8 +129,9 @@
 	};
 	
 	
-	// Event click on Annotation
-	// fireEvent poiSelectedOutput
+	/**
+	 * Event click on Annotation
+	 */
 	_self.funClickAnnotation = function funClickAnnotation(e){
 		if(e.clicksource == 'pin'){
 			
@@ -152,15 +152,15 @@
 				});
 				
 				MashupPlatform.wiring.pushEvent("poiSelectedOutput", eventData);
-				Ti.API.info("Fired event poiSelectedOutput with data: " + eventData);
 				
 			});
 
 		}
 	};
 	
-	// Event change viewport of Map
-	// fireEvent mapInfoOutput | visiblePoiListOutput
+	/**
+	 * Event change viewport of Map
+	 */ 
 	_self.funChangeMap = function funChangeMap(e){
 		if(_annotationClicked != null) {
 			_self.map.selectAnnotation(_annotationClicked);
@@ -190,7 +190,6 @@
 			};
 
 			MashupPlatform.wiring.pushEvent("mapInfoOutput", JSON.stringify(_mapInfoEventData));
-			Ti.API.info("Fired event mapInfoOutput with data: " + JSON.stringify(_mapInfoEventData));
 		}
 		
 
@@ -203,7 +202,6 @@
 			
 			var _sendPoiList = function _sendPoiList(_poiListToSend){
 				MashupPlatform.wiring.pushEvent("visiblePoiListOutput", JSON.stringify(_poiListToSend));
-				Ti.API.info("Fired event visiblePoiListOutput with data: " + JSON.stringify(_poiListToSend));
 			};
 			
 			for (var i in _aAnnotations) {
@@ -265,7 +263,6 @@
 	  *         fireEvent routeDescriptionOutput */
 	_self.handlerInputRoute = function handlerInputRoute (routeString, mode){
 		
-		Ti.API.info("Event inputRoute with data: " + routeString);
 		routeString = JSON.parse(routeString);
 		var _pOrigin;
 		var _pDestiny;
@@ -324,7 +321,6 @@
 							
 						var eventData = JSON.stringify({data:JSON.parse(values).routes});
 						MashupPlatform.wiring.pushEvent("routeDescriptionOutput", eventData);
-						Ti.API.info("Fired event routeDescriptionOutput with data: "+eventData);
 						
 						_routeShowed = JSON.parse(values).routes[0];
 						var _leg = _routeShowed.legs;
@@ -372,7 +368,6 @@
 	  * @parameters: stepNum (number step of routeShowed)
 	  * @usage: show alert with information of route */
 	_self.handlerInputRouteStep = function handlerInputRouteStep (stepNum){
-		Ti.API.info("Event inputRouteStep with data: " + stepNum);
 		if(_routeShowed != null){
 			var _step = _routeShowed.legs[0].steps[stepNum];	
 			_self.map.setLocation({
@@ -402,7 +397,6 @@
 	 * 		• address*: String.
 	 *  @usage: create POI from address for add to Map */
 	_self.handlerInputAddress = function handlerInputAddress (data) {
-		Ti.API.info("Event inputAddress with data: " + data);
 		var _addressData = JSON.parse(data);
 		var _addrString = _addressData.address;
 		
@@ -468,7 +462,6 @@
 	  *  callback: optional. Called when finished.
 	  * @usage: add POI to Map */
 	_self.handlerInputPoi = function handlerInputPoi(data, callback){
-		Ti.API.info("Event inputPoi with data: " + data);
 		var _poiData = JSON.parse(data);
 		
 		checkAnnotation(_poiData.id, function(_pA){
@@ -527,7 +520,6 @@
 	  * 	• id*.
 	  * @usage: delete POI in Map */
 	_self.handlerInputDeletePoi = function handlerInputDeletePoi(data){
-		Ti.API.info("Event inputDeletePoi with data: " + data);
 		var _poiData = JSON.parse(data);
 		
 		checkAnnotation(_poiData.id, function(_pA){
@@ -546,7 +538,6 @@
 	  * @parameters: data (JSON data POI)
 	  * @usage: usage POI for center Map */
 	_self.handlerInputPoiCenter = function handlerInputPoiCenter(data){
-		Ti.API.info("Event inputPoiCenter with data: " + data);
 		_self.handlerInputPoi(data, function(){
 			_self.handlerInputSelectPoi(data);
 		});
@@ -557,7 +548,6 @@
 	  * @parameters: poiString (JSON data POI)
 	  * @usage: center Map with poi */
 	_self.handlerInputSelectPoi = function handlerInputSelectPoi(poiString){
-		Ti.API.info("Event inputSelectPoi with data: " + poiString);
 		var _poi = JSON.parse(poiString);
 		
 		checkAnnotation(_poi.id, function(_pA){
@@ -604,7 +594,6 @@
 	 * 	• focus*: True or False. Not used in this case (there is no mouse)	
 	 */
 	_self.handlerMapInfoInput = function handlerMapInfoInput (data) {
-		Ti.API.info("Event MapInfoInput with data: " + data);
 		var mapInfoData = JSON.parse(data);
 		
 		var latitude = (parseFloat(mapInfoData.bounds.upperLeftCorner.latitude) + parseFloat(mapInfoData.bounds.lowerRightCorner.latitude)) / 2;
@@ -627,6 +616,7 @@
 	 * @params JSON data with the following elements:
 	 * 		• action*. String. The action to be accomplished: 'addLayer' | 'setBaseLayer' | 'removeLayer'
 	 * 		• data*. Object. Depending on the action, it can contain different values.
+	 * 
 	 * 			ADDLAYER
 	 * 			• id. An id to identify the layer.
 	 * 			• service. String. Currently, only 'WMS' is supported.
@@ -655,7 +645,6 @@
 	 * 			
 	 */
 	_self.handlerLayerInfoInput = function  handlerLayerInfoInput (data) {
-		Ti.API.info("Event LayerInfoInput with data: " + data);
 		var _layerInfo = JSON.parse(data);
 		
 		switch(_layerInfo.action){
@@ -933,29 +922,23 @@
 		}
 		
 	};
-	
-	
-	console.log("-------------------------------------");
-	console.log("-------------- PRUEBAS --------------");
-	console.log("-------------------------------------");
-	
+
 	
 	var initializeMap = function initializeMap(){
 		
-		console.log("-------------- EJECUTANDO CREATE MAP --------------");
 		Map.createMap({
 			userLocation: true,
 	        animate: true,
 	        region: { //Spain
 	        	latitude: 40.87365, 
 	        	longitude: -4.20689, 
-	        	latitudeDelta: 0.2, 
-	        	longitudeDelta: 0.2 
+	        	latitudeDelta: 0.4, 
+	        	longitudeDelta: 0.4 
 	    	}, 
 	        enableZoomControls: false,
 	        userLocationButton: false
 		}, function(_map){
-			console.log("-------------- EN CALLBACK DE CREATE MAP --------------");
+
 			_self.map = _map;
 			
 			//Display the map
@@ -980,152 +963,6 @@
 			MashupPlatform.wiring.registerCallback('mapInfoInput', _self.handlerMapInfoInput);
 			MashupPlatform.wiring.registerCallback('layerInfoInput', _self.handlerLayerInfoInput);
 	
-			
-			setTimeout(function(){
-				
-				console.log("-------------- INICIANDO BATERÍA DE PRUEBAS --------------");
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 1");
-					
-					//var data = '{"id":"id001","zip":"28035","city":"Madrid","country":"Spain"}';
-					var data = '{"id":"id001","address":"Collado Mostajo 77, Madrid, España"}';
-					
-					_self.handlerInputAddress(data);
-					
-					Ti.API.info("Fin de PRUEBA 1");
-				}, 7000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 2");
-					
-					var data = '{"bounds":{"upperLeftCorner":{"longitude":"-37.027709802444","latitude":"52.901184042944"},"lowerRightCorner":{"longitude":"26.868774644683","latitude":"26.797668388478"}},"cursorCoordinates":null,"focus":null}';
-					_self.handlerMapInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 2");
-				}, 10000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 3");
-					
-					var data = '{"id":"id002", "title": "Este es un marcador", "coordinates": {"longitude":"-3.81159313310727","latitude":"40.5388818129467"}}';
-					_self.handlerInputPoi(data);
-					
-					Ti.API.info("Fin de PRUEBA 3");
-				}, 15000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 4");
-					
-					var data = '{"id":"id002", "title": "Este es EL marcador"}';
-					_self.handlerInputPoi(data);
-					
-					Ti.API.info("Fin de PRUEBA 4");
-				}, 20000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 6");
-					
-					var data = '{"id":"id002"}';
-					_self.handlerInputDeletePoi(data);
-					
-					Ti.API.info("Fin de PRUEBA 6");
-				}, 25000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 6 - bis");
-					
-					var data = '{"id":"id001"}';
-					_self.handlerInputDeletePoi(data);
-					
-					Ti.API.info("Fin de PRUEBA 6 - bis");
-				}, 30000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 7");
-					
-					var data = '{"id":"id003", "title": "Marcador de origen", "coordinates": {"longitude":"-3.81159313310727","latitude":"40.5388818129467"}}';
-					_self.handlerInputPoiCenter(data);
-					
-					var data = '{"id":"id004", "title": "Marcador de destino", "coordinates": {"longitude":"-2.81159313310727","latitude":"41.5388818129467"}}';
-					_self.handlerInputPoiCenter(data);
-					
-					Ti.API.info("Fin de PRUEBA 7");
-				}, 40000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 8");
-					
-					var data = '{"from": "id003", "to": "id004"}';
-					
-					_self.handlerInputRoute(data);
-					
-					Ti.API.info("Fin de PRUEBA 8");
-				}, 50000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 9 - Añadir una capa");
-					
-					var data = '{"action":"addLayer","data":{"id":"layer1","service":"WMS","version":"1.3.0","url":"http://www.ign.es/wms-inspire/ign-base","name":"PS.ProtectedSite","projection":"EPSG:4326","zIndex":8,"opacity":80,"queryable":true}}';
-					_self.handlerLayerInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 9");
-					
-				}, 60000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 10 - Cambiar la capa base");
-					
-					var data = '{"action":"setBaseLayer","data":{"id":"GOOGLE_HYBRID"}}';
-					_self.handlerLayerInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 10");
-					
-					console.log("-------------- FINALIZADA BATERÍA DE PRUEBAS --------------");
-				}, 70000);setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 9 - Añadir una capa");
-					
-					var data = '{"action":"addLayer","data":{"id":"layer1","service":"WMS","version":"1.3.0","url":"http://www.ign.es/wms-inspire/ign-base","name":"PS.ProtectedSite","projection":"EPSG:4326","zIndex":8,"opacity":80,"queryable":true}}';
-					_self.handlerLayerInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 9");
-					
-				}, 60000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 10 - Crear una capa base");
-					
-					var data = '{"action":"setBaseLayer","data":{"service":"WMS","version":"1.3.0","url":"http://www.ign.es/wms-inspire/ign-base","name":"IGNBaseTodo","projection":"EPSG:4326","queryable":true}}';
-					_self.handlerLayerInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 10");
-					
-				}, 70000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 11 - Cambiar la capa base a una de Google");
-					
-					var data = '{"action":"setBaseLayer","data":{"id":"GOOGLE_HYBRID"}}';
-					_self.handlerLayerInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 11");
-					
-				}, 90000);
-				
-				setTimeout(function(){
-					Ti.API.info("Ejecutando PRUEBA 12 - Borrar una capa");
-					
-					var data = '{"action":"removeLayer","data":{"id":"layer1"}}';
-					_self.handlerLayerInfoInput(data);
-					
-					Ti.API.info("Fin de PRUEBA 12");
-					
-					console.log("-------------- FINALIZADA BATERÍA DE PRUEBAS --------------");
-				}, 100000);
-				
-				
-				
-			}, 5000); //END TEST
 			
 		});
 	};
@@ -1166,13 +1003,10 @@
 		if(_available){
 			initializeMap();
 		} else {
-			alert("El servicio de mapas no está disponible");
+			console.log("Map service is not available.");
 		}
 	});
-	
-	
-	
-	
+
 	
     
 }());
