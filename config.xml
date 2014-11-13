@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer" version="3.0.0">
+<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer" version="3.0.2">
   <details>
     <title>Map Viewer</title>
     <email>alejandro.vera@centeropenmiddleware.com</email>
@@ -30,6 +30,8 @@
     <inputendpoint name="mapInfoInput" type="text" label="Map Info" description="Allows to synchronize maps." actionlabel="Map Info" friendcode="mapInfo"/>
     <inputendpoint name="layerInfoInput" type="text" label="Layer Info" description="Add or remove layers to the map, in addition to changing its base layer." actionlabel="Layer Info" friendcode="layerInfo"/>
   </wiring>
-  <contents src="index.html" cacheable="false"/>
+  <contents src="index.html" cacheable="false">
+      <altcontents src="w4t.html" scope="yaast"/>
+  </contents>
   <rendering height="50" width="7"/>
 </widget>
