@@ -942,12 +942,12 @@
 			_self.map = _map;
 			
 			//Display the map
-			_self.map.addBound(1, {
-				height: '90%',
-				width: '90%',
-				top: '10px',
-	        	left: '10px'
-			});
+            _self.map.addBound({
+                height: '100%',
+                width: '100%',
+                top: '0px',
+                left: '0px'
+            });
 			
 			_self.map.addEventListener('regionchanged', _self.funChangeMap);
 			_self.map.addEventListener('longclick', _self.getFeatureInfo);
