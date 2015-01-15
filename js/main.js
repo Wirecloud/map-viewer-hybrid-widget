@@ -461,32 +461,44 @@
 	  * 		◦ latitude.
 	  *  callback: optional. Called when finished.
 	  * @usage: add POI to Map */
-	_self.handlerInputPoi = function handlerInputPoi(data, callback){
+	_self.handlerInputPoi = function handlerInputPoi(data, callback) {
 		var _poiData = JSON.parse(data);
-		
-		checkAnnotation(_poiData.id, function(_pA){
+
+        if (_poiData.coordinates == null && _poiData.currentLocation != null) {
+            _poiData.coordinates = {
+                latitude: _poiData.currentLocation.lat,
+                longitude: _poiData.currentLocation.lng
+            };
+        }
+
+		checkAnnotation(_poiData.id, function(_pA) {
 			
 			//Edit POI (only id is compulsory)
-			if(_pA !== null){
+			if (_pA !== null) {
 				
-				if(_poiData.title != null)
+				if (_poiData.title != null) {
 					_pA.setProperty("title", _poiData.title);
+                }
 					
-				if(_poiData.subtitle != null)
+				if (_poiData.subtitle != null) {
 					_pA.setProperty("subtitle", _poiData.subtitle);
+                }
 					
-				if(_poiData.icon != null)
+				if (_poiData.icon != null) {
 					_pA.setProperty("image", _poiData.icon);
-					
-				if(_poiData.coordinates != null && _poiData.coordinates.latitude != null)
+                }
+
+				if (_poiData.coordinates != null && _poiData.coordinates.latitude != null) {
 					_pA.setProperty("latitude", _poiData.coordinates.latitude);
+                }
 					
-				if(_poiData.coordinates != null && _poiData.coordinates.longitude != null)
+				if (_poiData.coordinates != null && _poiData.coordinates.longitude != null) {
 					_pA.setProperty("longitude", _poiData.coordinates.longitude);
+                }
 					
-				if(typeof(callback) == "function")
+				if ((typeof(callback) == "function")) {
 					callback();
-	
+                }
 				
 			//Create POI
 			} else {
