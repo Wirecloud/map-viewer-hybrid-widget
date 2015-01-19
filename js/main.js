@@ -937,7 +937,8 @@
 
 	
 	var initializeMap = function initializeMap(){
-		
+		var mapCanvas = document.getElementById('map_canvas');
+
 		Map.createMap({
 			userLocation: true,
 	        animate: true,
@@ -947,19 +948,20 @@
 	        	latitudeDelta: 0.4, 
 	        	longitudeDelta: 0.4 
 	    	}, 
-	        enableZoomControls: false,
-	        userLocationButton: false
+	        enableZoomControls: true,
+	        userLocationButton: true
 		}, function(_map){
 
 			_self.map = _map;
 			
 			//Display the map
-            _self.map.addBound({
-                height: '100%',
-                width: '100%',
-                top: '0px',
-                left: '0px'
-            });
+			console.log(mapCanvas.getBoundingClientRect());
+			_self.map.addBound({
+				height: '90%',
+				width: '90%',
+				top: '10px',
+				left: '10px'
+			});
 			
 			_self.map.addEventListener('regionchanged', _self.funChangeMap);
 			_self.map.addEventListener('longclick', _self.getFeatureInfo);
