@@ -448,7 +448,37 @@
 		
 		
 	};
-	
+
+	var normalizePOI = function(data) {
+		var finalPOI;
+
+		if (data.coordinates == null && data.currentLocation !== null) {
+			finalPOI = {
+				'id': data.id,
+				'coordinates' : {
+					'longitude': data.currentLocation.lng,
+					'latitude': data.currentLocation.lat
+				}
+			};
+			if (data.title) {
+				finalPOI.title = data.title;
+			}
+			if (data.subtitle) {
+				finalPOI.subtitle = data.subtitle;
+			}
+			if (data.icon) {
+				finalPOI.icon = data.icon;
+			}
+			if (data.infoWindow) {
+				finalPOI.infoWindow = data.infoWindow;
+			}
+		} else {
+			finalPOI = data;
+		}
+		console.log("normalizePOI: " + JSON.stringify(finalPOI));
+		return finalPOI;
+	};
+
 	/** @title: handlerInputPoi (Function)
 	  * @parameters: data (JSON data POI) with the following elements:
 	  * 	• id*.
@@ -459,74 +489,70 @@
 	  * 	• coordinates*:
 	  * 		◦ longitude.
 	  * 		◦ latitude.
+	  *		• infoWindow.
 	  *  callback: optional. Called when finished.
 	  * @usage: add POI to Map */
-	_self.handlerInputPoi = function handlerInputPoi(data, callback) {
-		var _poiData = JSON.parse(data);
+	_self.handlerInputPoi = function handlerInputPoi(data, callback){
+		var i;
+		console.log("handlerInputPoi initial data: " + data);
+		data = JSON.parse(data);
+		if (data.length == null) {
+			console.log("Single Data: " + JSON.stringify(data));
+			data = [data];
+		}
+		for (i = 0; i < data.length; i ++) {
+			console.log("adding/updating POI. data: " + JSON.stringify(data[i]));
+			var _poiData = normalizePOI(data[i]);
 
-        if (_poiData.coordinates == null && _poiData.currentLocation != null) {
-            _poiData.coordinates = {
-                latitude: _poiData.currentLocation.lat,
-                longitude: _poiData.currentLocation.lng
-            };
-        }
-
-		checkAnnotation(_poiData.id, function(_pA) {
-			
-			//Edit POI (only id is compulsory)
-			if (_pA !== null) {
-				
-				if (_poiData.title != null) {
-					_pA.setProperty("title", _poiData.title);
-                }
-					
-				if (_poiData.subtitle != null) {
-					_pA.setProperty("subtitle", _poiData.subtitle);
-                }
-					
-				if (_poiData.icon != null) {
-					_pA.setProperty("image", _poiData.icon);
-                }
-
-				if (_poiData.coordinates != null && _poiData.coordinates.latitude != null) {
-					_pA.setProperty("latitude", _poiData.coordinates.latitude);
-                }
-					
-				if (_poiData.coordinates != null && _poiData.coordinates.longitude != null) {
-					_pA.setProperty("longitude", _poiData.coordinates.longitude);
-                }
-					
-				if ((typeof(callback) == "function")) {
-					callback();
-                }
-				
-			//Create POI
-			} else {
-				Map.createAnnotation({
-					id: _poiData.id,
-					title: _poiData.title,
-					subtitle: _poiData.subtitle,
-					latitude: _poiData.coordinates.latitude,
-					longitude: _poiData.coordinates.longitude,
-					image: _poiData.icon
-					
-				}, function(_pA){
-					_pA.addEventListener('click', _self.funClickAnnotation);
-					_self.map.addAnnotation(_pA);
-					_pA = null;
-					
+			checkAnnotation(_poiData.id, function(_pA){
+				console.log("checkAnnotation POI ID: " + _poiData.id);
+				//Edit POI (only id is compulsory)
+				if(_pA !== null){
+					if(_poiData.title != null)
+						_pA.setProperty("title", _poiData.title);
+						
+					if(_poiData.subtitle != null)
+						_pA.setProperty("subtitle", _poiData.subtitle);
+						
+					if(_poiData.icon != null)
+						_pA.setProperty("image", _poiData.icon);
+						
+					if(_poiData.coordinates != null && _poiData.coordinates.latitude != null)
+						_pA.setProperty("latitude", _poiData.coordinates.latitude);
+						
+					if(_poiData.coordinates != null && _poiData.coordinates.longitude != null)
+						_pA.setProperty("longitude", _poiData.coordinates.longitude);
+						
 					if(typeof(callback) == "function")
 						callback();
-				});
-				
-			}
-			
-			_pA = null;
-		}); 
-		
-		
+
+				//Create POI
+				} else {
+					console.log("Creating POI " + _poiData.id);
+					Map.createAnnotation({
+						id: _poiData.id,
+						title: _poiData.title,
+						subtitle: _poiData.subtitle,
+						latitude: _poiData.coordinates.latitude,
+						longitude: _poiData.coordinates.longitude,
+						image: _poiData.icon,
+						html: _poiData.infoWindow,
+						htmlWidth: 100
+					}, function(_pA){
+						_pA.addEventListener('click', _self.funClickAnnotation);
+						_self.map.addAnnotation(_pA);
+						_pA = null;
+						
+						if(typeof(callback) == "function")
+							callback();
+					});
+				console.log("POI CREATED " + _poiData.id);
+				}
+				_pA = null;
+			});
+		}
 	};
-	
+
 	/** @title: handlerInputDeletePoi (Function)
 	  * @parameters: data (JSON data POI). Contains the following elements:
 	  * 	• id*.
