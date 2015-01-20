@@ -1,7 +1,6 @@
 (function () {
 
 	//TODO: revisar el bridge. A lo mejor en el id de _allowedEventsData deberia poner el tipo de dato que es para realizar la conversion.
-	//TODO: Hacer el setProperty compatible con un array.
 	//TODO: ¡OJO! el getFeatureInfo no esta funcionando cuando se hace tras la prueba 10 (con dos capas)
 
     "use strict";
@@ -137,7 +136,7 @@
 			
 			var _anno = e.source;
 			
-			_anno.getProperty(['id', 'title', 'subtitle', 'image', 'latitude', 'longitude'], function(_propResults){
+			_anno.getProperties(['id', 'title', 'subtitle', 'image', 'latitude', 'longitude'], function(_propResults){
 				
 				var eventData = JSON.stringify({
 					id: _propResults.id,
@@ -195,26 +194,26 @@
 
 		// SendPoiList
 		var _poiListToSend = [];
-		_self.map.getProperty("annotations", function(_aAnnotations){
+		_self.map.getProperties(["annotations"], function(properties){
 			
-			var _numAnnotations = _aAnnotations.length;
+			var _numAnnotations = properties.annotations.length;
 			var _annonChecked = 0;
 			
 			var _sendPoiList = function _sendPoiList(_poiListToSend){
 				MashupPlatform.wiring.pushEvent("visiblePoiListOutput", JSON.stringify(_poiListToSend));
 			};
 			
-			for (var i in _aAnnotations) {
-				var _annon = _aAnnotations[i];
-				
-				_annon.getProperty(['latitude', 'longitude', 'title', 'subtitle', 'image'], function(i, _propResults){
-					
+			for (var i in properties.annotations) {
+				var _annon = properties.annotations[i];
+
+				_annon.getProperties(['latitude', 'longitude', 'title', 'subtitle', 'image'], function(i, _propResults){
+
 					var _annonLatitude = _propResults.latitude;
 					var _annonLongitude = _propResults.longitude;
 					if (_annonLatitude < (_mapRegion.latitude + _mapRegion.latitudeDelta/2) && _annonLatitude > (_mapRegion.latitude - _mapRegion.latitudeDelta/2) && _annonLongitude < (_mapRegion.longitude + _mapRegion.longitudeDelta/2) && _annonLongitude > (_mapRegion.longitude - _mapRegion.longitudeDelta/2)) {
-							
+
 						_poiListToSend.push({
-							id : _aAnnotations[i].id,
+							id : properties.annotations[i].id,
 							title : _propResults.title,
 							subtitle : _propResults.subtitle,
 							icon : _propResults.image,
@@ -224,37 +223,32 @@
 								longitude : _annonLongitude
 							}
 						});
-						
+
 						if(++_annonChecked == _numAnnotations){
 							_sendPoiList(_poiListToSend); //Send widget output
 							_poiListToSend = null;
-							_aAnnotations = null;
+							properties.annotations = null;
+							properties = null;
 							_mapRegion = null;
 							_annon = null;
 						}
-						
-						
-							
+
 					} else if(++_annonChecked == _numAnnotations){
 						_sendPoiList(_poiListToSend); //Send widget output
 						_poiListToSend = null;
-						_aAnnotations = null;
+						properties.annotations = null;
+						properties = null;
 						_mapRegion = null;
 						_annon = null;
 					}
-					
+
 				}.bind(null, i));
-				
 			}
-			
-			
+
 		});
-		
 
 	};
-	
-	
-	
+
 	/** @title: handlerInputRoute (Function)
 	  * @parameters: routeString (JSON data {from: poiIdOrigin, to: poiIdDestiny})
 	  *              mode = [ walking | transit | driving ]
@@ -283,7 +277,7 @@
 				var _anno = checkAnnotation(pointData, function(_anno){
 					
 					if(_anno != null){
-						_anno.getProperty(["latitude", "longitude"], function(_point){
+						_anno.getProperties(["latitude", "longitude"], function(_point){
 							callback(_point);
 						});
 						
@@ -493,60 +487,81 @@
 	  *  callback: optional. Called when finished.
 	  * @usage: add POI to Map */
 	_self.handlerInputPoi = function handlerInputPoi(data, callback){
-		var i;
+		var i, props2Change, poiList;
 		console.log("handlerInputPoi initial data: " + data);
 		data = JSON.parse(data);
 		if (data.length == null) {
 			console.log("Single Data: " + JSON.stringify(data));
 			data = [data];
 		}
+		poiList = [];
 		for (i = 0; i < data.length; i ++) {
 			console.log("adding/updating POI. data: " + JSON.stringify(data[i]));
 			var _poiData = normalizePOI(data[i]);
-
+			var loopCounter = 0;
 			checkAnnotation(_poiData.id, function(_pA){
-				console.log("checkAnnotation POI ID: " + _poiData.id);
+				console.log("checkAnnotation POI ID: " + JSON.stringify(_pA));
 				//Edit POI (only id is compulsory)
 				if(_pA !== null){
-					if(_poiData.title != null)
-						_pA.setProperty("title", _poiData.title);
-						
-					if(_poiData.subtitle != null)
-						_pA.setProperty("subtitle", _poiData.subtitle);
-						
-					if(_poiData.icon != null)
-						_pA.setProperty("image", _poiData.icon);
-						
-					if(_poiData.coordinates != null && _poiData.coordinates.latitude != null)
-						_pA.setProperty("latitude", _poiData.coordinates.latitude);
-						
-					if(_poiData.coordinates != null && _poiData.coordinates.longitude != null)
-						_pA.setProperty("longitude", _poiData.coordinates.longitude);
-						
-					if(typeof(callback) == "function")
-						callback();
-
+					console.log("Updating POI ID: " + _poiData.id);
+					props2Change = {};
+					if(_poiData.title != null) {
+						props2Change["title"] = _poiData.title;
+					}
+					if(_poiData.subtitle != null) {
+						props2Change["subtitle"] = _poiData.subtitle;
+					}
+					if(_poiData.icon != null) {
+						props2Change["image"] = _poiData.icon;
+					}
+					if(_poiData.coordinates != null && _poiData.coordinates.latitude != null) {
+						props2Change["latitude"] = _poiData.coordinates.latitude;
+					}
+					if(_poiData.coordinates != null && _poiData.coordinates.longitude != null) {
+						props2Change["longitude"] = _poiData.coordinates.longitude;
+					}
+					_pA.setProperties(props2Change);
 				//Create POI
 				} else {
-					console.log("Creating POI " + _poiData.id);
-					Map.createAnnotation({
-						id: _poiData.id,
-						title: _poiData.title,
-						subtitle: _poiData.subtitle,
-						latitude: _poiData.coordinates.latitude,
-						longitude: _poiData.coordinates.longitude,
-						image: _poiData.icon,
-						html: _poiData.infoWindow,
-						htmlWidth: 100
-					}, function(_pA){
-						_pA.addEventListener('click', _self.funClickAnnotation);
-						_self.map.addAnnotation(_pA);
-						_pA = null;
+					console.log("creating POI ID: " + _poiData.id);
+					poiList.push(
+						{   
+							id: _poiData.id,
+							title: _poiData.title,
+							subtitle: _poiData.subtitle,
+							latitude: _poiData.coordinates.latitude,
+							longitude: _poiData.coordinates.longitude,
+							image: _poiData.icon,
+							html: _poiData.infoWindow,
+							htmlWidth: 100
+						}
+					);
+					console.log("Add POI " + _poiData.id + " to poiList");
+				}
+				if (++loopCounter == data.length) {
+					// Last loop
+					if (poiList.length > 0) {
+						Map.createAnnotation(poiList, function(_pAList){
+							console.log("POI LIST CREATED 1 -->" + JSON.stringify(_pAList));
+							var i;
+							for (i = 0; i < _pAList.length; i ++) {
+								_pA = _pAList[i];
+								_pA.addEventListener('click', _self.funClickAnnotation);
+								_self.map.addAnnotation(_pA);
+								_pA = null;
+
+							}
+							if(typeof(callback) == "function") {
+								callback();
+							}
+							console.log("POI LIST CREATED 2 -->" + JSON.stringify(_pAList));
+						});
 						
-						if(typeof(callback) == "function")
-							callback();
-					});
-				console.log("POI CREATED " + _poiData.id);
+					}
+				} else {
+					if(typeof(callback) == "function") {
+						callback();
+					}
 				}
 				_pA = null;
 			});
@@ -593,7 +608,7 @@
 				_annotationClicked = _pA;
 				_self.map.selectAnnotation(_pA);
 				
-				_pA.getProperty(["latitude", "longitude"], function(_point){
+				_pA.getProperties(["latitude", "longitude"], function(_point){
 						
 						_self.map.setLocation({
 							latitude: _point.latitude,
@@ -765,55 +780,28 @@
 	  * @parameters: id of poiToCheck
 	  * @usage: return Annotation into the map or null if not exist */
 	var checkAnnotation = function checkAnnotation(annotationId, callback){
-		_self.map.getProperty("annotations", function(_aAnnotations){
-			
-			if(!_aAnnotations){
+		_self.map.getProperties(["annotations"], function(result){
+			console.log(JSON.stringify(result));
+			if(!result){
 				callback(null);
 			}
-			
+
 			var found = false;
-			for(var i in _aAnnotations){
-				if(_aAnnotations[i].id === annotationId){
-					callback(_aAnnotations[i]);
+			for(var i in result.annotations){
+				if(result.annotations[i].id === annotationId){
+					callback(result.annotations[i]);
 					found = true;
 					break;
 				}
 			}
-			
-			_aAnnotations = null;
-			
+
+			result = null;
+
 			if(!found)
 				callback(null);
-			
 		});
+	};
 
-	};
-	
-	
-	/**
-	 * 
-	 * @param {Object} element Map, Annotaton, Polygon...
-	 * @param {Object} propertyList Array with the list of properties to retrieve.
-	 * @param {Object} callback Function that will be called when all the properties are retrieved.
-	 * @param {Object} results Optional. Object where the results will be added.
-	 */
-	var getMultiProperty = function getMultiProperty(element, propertyList, callback, results){
-		
-		if(results == null)
-			results = {};
-		
-		if(propertyList.length > 0){
-			var _prop = propertyList.pop();
-			element.getProperty(_prop, function(_val){
-				results[_prop] = _val;
-				getMultiProperty(element, propertyList, callback, results);
-			});
-		} else 
-			callback(results);
-		
-	};
-	
-	
 	/**
 	 * Handles the addLayer action.
  	 * @param {Object} _layerData The data property of the info given as input of the widget for the addLayer action.
@@ -983,10 +971,10 @@
 			//Display the map
 			console.log(mapCanvas.getBoundingClientRect());
 			_self.map.addBound({
-				height: '90%',
-				width: '90%',
-				top: '10px',
-				left: '10px'
+				height: '100%',
+				width: '100%',
+				top:0,
+				left: 0
 			});
 			
 			_self.map.addEventListener('regionchanged', _self.funChangeMap);
@@ -1002,10 +990,48 @@
 			MashupPlatform.wiring.registerCallback('selectPoiInput', _self.handlerInputSelectPoi);
 			MashupPlatform.wiring.registerCallback('mapInfoInput', _self.handlerMapInfoInput);
 			MashupPlatform.wiring.registerCallback('layerInfoInput', _self.handlerLayerInfoInput);
-	
-			
+
+			// Call stacked input callbacks
+			var i;
+			var inputCallbacksHash = {
+				'routeInput': _self.handlerInputRoute,
+				'routeStepInput': _self.handlerInputRouteStep,
+				'addressInput': _self.handlerInputAddress,
+				'poiInput': _self.handlerInputPoi,
+				'deletePoiInput': _self.handlerInputDeletePoi,
+				'poiInputCenter': _self.handlerInputPoiCenter,
+				'selectPoiInput': _self.handlerInputSelectPoi,
+				'mapInfoInput': _self.handlerMapInfoInput,
+				'layerInfoInput': _self.handlerLayerInfoInput
+			}
+
+			for (inputCall in actionsInitialStack) {
+				if(inputCall == 'poiInput') {
+					inputCallbacksHash[type](actionsInitialStack[inputCall]);
+				} else {
+					for (i = 0; i < actionsInitialStack[inputCall]; i ++) {
+						inputCallbacksHash[type](actionsInitialStack[inputCall][i]);
+					} 
+				}
+			}
 		});
 	};
+
+	var stackHandler = function(type, data) {
+		actionsInitialStack[type].push(data);
+	};
+
+	var actionsInitialStack = {};
+
+	MashupPlatform.wiring.registerCallback('routeInput', stackHandler.bind(null, 'routeInput'));
+	MashupPlatform.wiring.registerCallback('routeStepInput', stackHandler.bind(null, 'routeStepInput'));
+	MashupPlatform.wiring.registerCallback('addressInput', stackHandler.bind(null, 'addressInput'));
+	MashupPlatform.wiring.registerCallback('poiInput', stackHandler.bind(null, 'poiInput'));
+	MashupPlatform.wiring.registerCallback('deletePoiInput', stackHandler.bind(null, 'deletePoiInput'));
+	MashupPlatform.wiring.registerCallback('poiInputCenter', stackHandler.bind(null, 'poiInputCenter'));
+	MashupPlatform.wiring.registerCallback('selectPoiInput', stackHandler.bind(null, 'selectPoiInput'));
+	MashupPlatform.wiring.registerCallback('mapInfoInput', stackHandler.bind(null, 'mapInfoInput'));
+	MashupPlatform.wiring.registerCallback('layerInfoInput', stackHandler.bind(null, 'layerInfoInput'));
 	
 	_self.clearObject = function clearObject(){
 		
@@ -1030,7 +1056,6 @@
 		decodePolyline = null;
 		getRouteWidgetMap = null;
 		checkAnnotation = null;
-		getMultiProperty = null;
 		initializeMap = null;
 		handleAddLayer = null;
 		handleRemoveLayer = null;
