@@ -957,8 +957,8 @@
 			userLocation: true,
 	        animate: true,
 	        region: { //Spain
-	        	latitude: 40.87365, 
-	        	longitude: -4.20689, 
+	        	latitude: 39.47314162997572, 
+	        	longitude: -0.344953005422892, 
 	        	latitudeDelta: 0.4, 
 	        	longitudeDelta: 0.4 
 	    	}, 
