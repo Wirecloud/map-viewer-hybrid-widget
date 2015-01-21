@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer" version="3.1.9">
+<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer" version="3.1.12">
   <details>
     <title>Map Viewer</title>
     <email>alejandro.vera@centeropenmiddleware.com</email>
     <image>images/catalogue.png</image>
     <smartphoneimage>images/cataloguePhone.png</smartphoneimage>
-    <description>Place things on map! Explore the world, trace routes... [YaaST ti.map 3.0.11]</description>
+    <description>Place things on map! Explore the world, trace routes... [YaaST ti.map 3.0.12]</description>
     <doc>http://conwet.fi.upm.es/docs/display/wirecloud/Map+Viewer</doc>
     <authors>AlejandroVera</authors>
   </details>
