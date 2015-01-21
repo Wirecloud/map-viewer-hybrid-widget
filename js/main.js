@@ -487,7 +487,7 @@
 	  *  callback: optional. Called when finished.
 	  * @usage: add POI to Map */
 	_self.handlerInputPoi = function handlerInputPoi(data, callback){
-		var i, props2Change, poiList;
+		var i, props2Change, poiList, loopCounter;
 		console.log("handlerInputPoi initial data: " + data);
 		data = JSON.parse(data);
 		if (data.length == null) {
@@ -495,10 +495,10 @@
 			data = [data];
 		}
 		poiList = [];
+		loopCounter = 0;
 		for (i = 0; i < data.length; i ++) {
 			console.log("adding/updating POI. data: " + JSON.stringify(data[i]));
 			var _poiData = normalizePOI(data[i]);
-			var loopCounter = 0;
 			checkAnnotation(_poiData.id, function(_pA){
 				console.log("checkAnnotation POI ID: " + JSON.stringify(_pA));
 				//Edit POI (only id is compulsory)
@@ -992,7 +992,7 @@
 			MashupPlatform.wiring.registerCallback('layerInfoInput', _self.handlerLayerInfoInput);
 
 			// Call stacked input callbacks
-			var i;
+			var i, inputCall;
 			var inputCallbacksHash = {
 				'routeInput': _self.handlerInputRoute,
 				'routeStepInput': _self.handlerInputRouteStep,
@@ -1005,23 +1005,29 @@
 				'layerInfoInput': _self.handlerLayerInfoInput
 			}
 
+			console.log(' ++ actionsInitialStack ++' + actionsInitialStack);
 			for (inputCall in actionsInitialStack) {
 				if(inputCall == 'poiInput') {
-					inputCallbacksHash[type](actionsInitialStack[inputCall]);
+					console.log('Calling poiInputHandler with a list');
+					inputCallbacksHash[inputCall](actionsInitialStack[inputCall]);
 				} else {
 					for (i = 0; i < actionsInitialStack[inputCall]; i ++) {
-						inputCallbacksHash[type](actionsInitialStack[inputCall][i]);
-					} 
+						console.log('Calling ' + inputCall + ' with data: ' + actionsInitialStack[inputCall][i]);
+						inputCallbacksHash[inputCall](actionsInitialStack[inputCall][i]);
+					}
 				}
 			}
 		});
 	};
 
+	var actionsInitialStack = {};
 	var stackHandler = function(type, data) {
+		console.log('stackHandler type ' + type + ' data: ' + data);
+		if (!actionsInitialStack[type]) {
+			actionsInitialStack[type] = [];
+		}
 		actionsInitialStack[type].push(data);
 	};
-
-	var actionsInitialStack = {};
 
 	MashupPlatform.wiring.registerCallback('routeInput', stackHandler.bind(null, 'routeInput'));
 	MashupPlatform.wiring.registerCallback('routeStepInput', stackHandler.bind(null, 'routeStepInput'));
