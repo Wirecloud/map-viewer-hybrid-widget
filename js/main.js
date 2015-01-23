@@ -193,59 +193,32 @@
 		
 
 		// SendPoiList
-		var _poiListToSend = [];
-		_self.map.getProperties(["annotations"], function(properties){
+		_self.map.getVisibleAnnotationsInRegion(_mapRegion, function(_annoInfoArray){
 			
-			var _numAnnotations = properties.annotations.length;
-			var _annonChecked = 0;
+			var _poiListToSend = [];
 			
-			var _sendPoiList = function _sendPoiList(_poiListToSend){
-				MashupPlatform.wiring.pushEvent("visiblePoiListOutput", JSON.stringify(_poiListToSend));
-			};
-			
-			for (var i in properties.annotations) {
-				var _annon = properties.annotations[i];
-
-				_annon.getProperties(['latitude', 'longitude', 'title', 'subtitle', 'image'], function(i, _propResults){
-
-					var _annonLatitude = _propResults.latitude;
-					var _annonLongitude = _propResults.longitude;
-					if (_annonLatitude < (_mapRegion.latitude + _mapRegion.latitudeDelta/2) && _annonLatitude > (_mapRegion.latitude - _mapRegion.latitudeDelta/2) && _annonLongitude < (_mapRegion.longitude + _mapRegion.longitudeDelta/2) && _annonLongitude > (_mapRegion.longitude - _mapRegion.longitudeDelta/2)) {
-
-						_poiListToSend.push({
-							id : properties.annotations[i].id,
-							title : _propResults.title,
-							subtitle : _propResults.subtitle,
-							icon : _propResults.image,
-							tooltip : null,
-							coordinates : {
-								latitude : _annonLatitude,
-								longitude : _annonLongitude
-							}
-						});
-
-						if(++_annonChecked == _numAnnotations){
-							_sendPoiList(_poiListToSend); //Send widget output
-							_poiListToSend = null;
-							properties.annotations = null;
-							properties = null;
-							_mapRegion = null;
-							_annon = null;
-						}
-
-					} else if(++_annonChecked == _numAnnotations){
-						_sendPoiList(_poiListToSend); //Send widget output
-						_poiListToSend = null;
-						properties.annotations = null;
-						properties = null;
-						_mapRegion = null;
-						_annon = null;
+			for (var i in _annoInfoArray) {
+				
+				var _annoInfo = _annoInfoArray[i];
+				
+				_poiListToSend.push({
+					id : _annoInfo.id,
+					title : _annoInfo.title,
+					subtitle : _annoInfo.subtitle,
+					icon : _annoInfo.image,
+					tooltip : null,
+					coordinates : {
+						latitude : _annoInfo.latitude,
+						longitude : _annoInfo.longitude
 					}
-
-				}.bind(null, i));
+				});
+				
 			}
-
+			
+			MashupPlatform.wiring.pushEvent("visiblePoiListOutput", JSON.stringify(_poiListToSend));
+			
 		});
+		
 
 	};
 
@@ -1003,9 +976,9 @@
 				'selectPoiInput': _self.handlerInputSelectPoi,
 				'mapInfoInput': _self.handlerMapInfoInput,
 				'layerInfoInput': _self.handlerLayerInfoInput
-			}
+			};
 
-			console.log(' ++ actionsInitialStack ++' + actionsInitialStack);
+			console.log(' ++ actionsInitialStack ++' + JSON.stringify(actionsInitialStack));
 			for (inputCall in actionsInitialStack) {
 				if(inputCall == 'poiInput') {
 					console.log('Calling poiInputHandler with a list');
