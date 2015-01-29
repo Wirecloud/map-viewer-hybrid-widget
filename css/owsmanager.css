@@ -1,0 +1,575 @@
+/* LAYER SELECTOR CONTROL */
+
+.olControlOWSManager {
+    display: none;
+    position: absolute;
+    top: 4px;
+    right: 0px;
+    left: auto;
+    font-family: sans-serif;
+    font-weight: bold;
+    padding: 8px 0 0 0;
+    margin: 0 -2px 0 0;
+    font-size: smaller;
+    color: #444444;
+    background-color: transparent;
+    width: 305px !important;
+}
+
+.olControlOWSManager.show {
+    display: block;
+}
+
+/* Tabs */
+
+.tab_header {
+}
+
+.tab_header .tab {
+    border-radius: 3px 3px 0 0;
+    -moz-border-radius: 3px 10px 0 0;
+    -webkit-border-radius: 3px 10px 0 0;
+    background-color: #DADADA;
+    border: 1px solid rgba(0,0,0,0.2);
+    border-bottom: none;
+    color: rgba(255,255,255,1);
+    cursor: pointer;
+    display: inline;
+    margin: 2px 2px 0;
+    padding: 3px;
+    text-decoration: none;
+    text-shadow: 1px 1px 1px rgba(0,0,0,1);
+    font-weight: bold;
+}
+
+.tab_header .tab.active {
+    color: rgba(0,0,0,0.5);
+    background-color: white;
+    text-shadow: none;
+}
+
+.config_button:hover {
+    box-shadow: 0 0 6px white;
+}
+.config_button {
+    display:none !important;
+    border-radius: 14px;
+    -moz-border-radius: 14px;
+    -webkit-border-radius: 14px;
+    display: block;
+    width: 24px;
+    height: 24px;
+    position: absolute;
+    float: right;
+    top: 5px;
+    right: 4px;
+    cursor: pointer;
+    padding: 1px;
+    border: 1px solid rgba(0,0,0,0.2);
+    background: url("../img/button-config-bg.png") no-repeat scroll 0 0 white;
+    z-index: 1000;
+    box-shadow: 1px 1px 2px;
+}
+
+.tab_header .minimize {
+    border-radius: 14px 14px 0 0;
+    -moz-border-radius: 14px 14px 0 0;
+    -webkit-border-radius: 14px 14px 0 0;
+    background: url("../img/button-config-disabled.png") no-repeat scroll 0 0 white;
+    border: 1px solid rgba(0,0,0,0.2);
+    border-bottom: none;
+    cursor: pointer;
+    position: absolute;
+    display: block;
+    height: 26px;
+    width: 26px;
+    right: 6px;
+    top: 1px;   
+
+}
+
+
+.tab_container {
+    border-radius: 0 0 3px 9px;
+    -moz-border-radius: 0 0 3px 9px;
+    -webkit-border-radius: 0 0 3px 9px;
+    display: none;
+    background-color: white;
+    border: solid 1px rgba(0,0,0,0.2);
+    color: #444444;
+    font-weight: normal;
+    margin: 2px 6px 0 2px;
+    max-height: 250px;
+    overflow: auto;
+    padding: 7px;
+    box-shadow: 5px 5px 10px;
+}
+
+
+.tab_container.active {
+    display: block;
+}
+
+/* Table */
+
+.tab_container table {
+    width: 100%;
+}
+
+.tab_container th, .tab_container td {
+    border-bottom: 1px inset rgba(0,0,0,0.2);
+    padding: 2px;
+}
+
+.tab_container th {
+    font-weight: bold;
+}
+
+.tab_container .last th, .tab_container .last td {
+    border: none;
+}
+
+/* Layers tab*/
+
+.tab_layers .overlays {
+    border-radius: 3px;
+    -moz-border-radius: 3px;
+    -webkit-border-radius: 3px;
+    margin: 5px 0;
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.2);
+}
+
+.tab_layers .baselayers {
+    border-radius: 3px 8px 3px 3px;
+    -moz-border-radius: 3px 8px 3px 3px;
+    -webkit-border-radius: 3px 8px 3px 3px;
+    margin: 0 0 5px 0;
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.2);
+
+}
+
+.tab_layers .details {
+    border-radius: 3px 3px 3px 8px;
+    -moz-border-radius: 3px 3px 3px 8px;
+    -webkit-border-radius: 3px 3px 3px 8px;
+    margin: 0;
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.3);
+    height: 80px;
+    padding: 0;
+    width: auto;
+    overflow: auto;
+}
+
+.tab_layers .baselayers .header, .tab_layers .overlays .header {
+    border-radius: 2px 6px 0 0;
+    -moz-border-radius: 2px 6px 0 0;
+    -webkit-border-radius: 2px 6px 0 0;
+    display: block;
+    height: 18px;
+    position: relative;
+    background: rgba(0,0,0,0.05);
+    padding: 0 5px;
+    border-bottom: solid 1px rgba(0,0,0,0.2);
+    box-shadow: inset -0px -1px 1px rgba(0,0,0,0.3);
+}
+
+.tab_layers .overlays .header {
+    border-radius: 2px 2px 0 0;
+    -moz-border-radius: 2px 2px 0 0;
+    -webkit-border-radius: 2px 2px 0 0;
+}
+
+.tab_layers .baselayers .container, .tab_container .overlays .container {
+    max-height: 50px;
+    min-height: 20px;
+    overflow: auto;
+}
+
+.tab_layers .layer {
+    display: block;
+    height: 20px;
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    border-top: 1px solid transparent;
+    margin: 1px 0;
+}
+
+.tab_layers .layer input {
+    float: left;
+}
+
+.tab_layers .layer span {
+    display: block;
+    float: left;
+    height: 18px;
+    overflow: hidden;
+    width: 180px;
+}
+
+.tab_layers .disabled_layer span {
+    color: #C13131;
+    text-decoration: line-through;
+}
+
+.tab_layers .layer.selected {    
+    background: rgba(0,0,0,0.1);
+}
+
+.tab_layers .layer.highlight {
+    background: rgba(0,0,0,0.05);
+}
+
+.tab_layers .layer .layer_button {
+    display: none;
+    width: 16px;
+    height: 16px;
+    position: relative;
+    cursor: pointer;
+    float: right;
+    margin: 0;
+    top: 2px;
+}
+
+.tab_layers .layer.highlight .layer_button {
+    display: block;
+}
+
+.tab_layers .layer .layer_button.up {
+    background: transparent url("../img/go-up.png") no-repeat 0 0;
+}
+
+.tab_layers .layer .layer_button.down {
+    background: transparent url("../img/go-down.png") no-repeat 0 0;
+}
+
+.tab_layers .layer .layer_button.zoom {
+    background: transparent url("../img/zoom-fit-best.png") no-repeat 0 0;
+}
+
+/*.tab_layers .disabled_layer .layer_button.zoom,*/
+.tab_layers .deselected_baselayer .layer_button.zoom {
+    visibility: hidden;
+    cursor: default;
+}
+
+.tab_layers .layer .layer_button.drop {
+    background: transparent url("../img/remove.png") no-repeat 0 0;
+}
+
+.tab_layers .details .opacity span {
+    display: block;
+    height: 16px;
+    position: relative;
+    cursor: pointer;
+    margin: 0 2px;
+    float: left;
+}
+
+.tab_layers .details .opacity .opacity_button {
+    display: block;
+    width: 16px;
+    height: 16px;
+    position: relative;
+    cursor: pointer;
+    margin: 0px;
+    float: left;
+}
+
+.tab_layers .details .opacity .opacity_button.up {
+    background: transparent url("../img/go-next.png") no-repeat 0 0;
+}
+
+.tab_layers .details .opacity .opacity_button.down {
+    background: transparent url("../img/go-previous.png") no-repeat 0 0;
+}
+
+/* Servers tab*/
+
+.tab_servers input {
+    position: relative;
+    top: 2px;
+}
+
+.removeButton:active {
+    box-shadow: inset 1px 1px 2px !important;     
+}
+
+.removeButton {
+    border-radius: 15px !important;
+    -moz-border-radius: 15px !important;
+    -webkit-border-radius: 15px !important;
+    margin-top:0px !important;
+}
+
+
+.tab_servers button {
+    border-radius: 3px;
+    -moz-border-radius: 3px;
+    -webkit-border-radius: 3px;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.2);
+    color: #444444;
+    cursor: pointer;
+    float: right;
+    height: 22px;
+    line-height: 22px;
+    padding: 0 5px;
+    font-family: sans-serif;
+    font-size: small;
+    margin: 1px 0 5px;
+    box-shadow: 1px 1px 2px;
+}
+
+
+
+.tab_servers .layer_info {
+    border-radius: 3px 3px 3px 8px;
+    -moz-border-radius: 3px 3px 3px 8px;
+    -webkit-border-radius: 3px 3px 3px 8px;
+    margin: 0;
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.3);
+    height: 80px;
+    padding: 0;
+    width: auto;
+    overflow: auto;
+    clear: both;
+}
+
+/* Marker toolbar*/
+
+.marker_toolbar {
+    position: absolute;
+    top: 5px;
+    left: 130px;
+    height: 28px;
+    overflow: hidden;
+    z-index: 1000;
+}
+.marker_toolbar .marker_button:hover {
+    transition: 0.2s;
+    box-shadow: 0 0 6px white;
+    opacity: 0.9;
+}
+
+.marker_toolbar .marker_button {
+    border-radius: 14px;
+    -moz-border-radius: 14px;
+    -webkit-border-radius: 14px;
+    display: block;
+    width: 24px;
+    height: 24px;
+    position: relative;
+    float: left;
+    cursor: pointer;
+    margin-right: 2px;
+    padding: 1px;
+    border: 1px solid rgba(0,0,0,0.2);
+    background-color: white;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    box-shadow: 1px 1px 2px;
+    opacity: 0.6;
+}
+
+.marker_toolbar .remove_all { 
+    background-image: url("../img/button-remove-all-bg.png");
+}
+
+.marker_toolbar .remove_query { 
+    background-image: url("../img/button-remove-query-bg.png");
+}
+
+.marker_toolbar .remove_selected { 
+    background-image: url("../img/button-remove-selected-bg.png");
+}
+
+.marker_toolbar .save { 
+    background-image: url("../img/button-save-bg.png");
+}
+
+/* Cloud Popup */
+
+.olFramedCloudPopupContent  {
+    color: #444444;
+    font-size: 11px;
+}
+
+.olFramedCloudPopupContent .popup_title {
+    font-weight: bold;
+    color: #809DCD;
+    font-size: 12px;
+}
+
+/* WMS TOOLBAR CONTROL*/
+.olControlWMSToolbar:hover{  
+    transition: 0.2s;
+    opacity: 1.0;
+}
+
+.olControlWMSToolbar { 
+    top: 5px;
+    left: 5px;
+    height: 30px;
+    overflow: hidden;
+    opacity: 0.8;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.2);
+    box-shadow: 3px 3px 7px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+
+.olControlWMSToolbar div:hover {
+    box-shadow: 0 0 6px white;
+}
+
+.olControlWMSToolbar div { 
+    display: block;
+    width: 24px;
+    height: 100%;
+    position: relative;
+    float: left;
+    cursor: pointer;
+    padding: 1px;
+    border-left: 1px solid rgba(0,0,0,0.2);
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    margin-top: 0px;
+    padding-top: 2px;
+}
+
+.olControlWMSToolbar div:first-child { 
+    border:none;
+}
+
+.olControlWMSToolbar .olControlRichNavigationPanItemActive { 
+    background-image: url("../img/button-pan-bg.png");
+    background-position: 5px 4px;
+    background-size: 16px;
+    background-color: #FFD265;
+}
+
+.olControlWMSToolbar .olControlRichNavigationPanItemInactive { 
+    background-image: url("../img/button-pan-bg.png");
+    background-position: 5px 4px;
+    background-size: 16px;
+}
+
+.olControlWMSToolbar .olControlZoomBoxItemActive { 
+    background-image: url("../img/button-zoom-bg.png");
+    background-color: #FFD265;
+    background-size: 20px;
+    background-position: 4px 4px;
+}
+
+.olControlWMSToolbar .olControlZoomBoxItemInactive { 
+    background-image: url("../img/button-zoom-bg.png");
+    background-size: 20px;
+    background-position: 4px 4px;
+}
+
+.olControlWMSToolbar .olControlWMSQueryItemActive { 
+    background-image: url("../img/button-query-bg.png");
+    background-color: #FFD265;
+    background-size: 20px;
+    background-position: 3px 4px;
+}
+
+.olControlWMSToolbar .olControlWMSQueryItemInactive { 
+    background-image: url("../img/button-query-bg.png");
+    background-size: 20px;
+    background-position: 3px 4px;
+}
+
+.olControlWMSToolbar .olControlRichNavigationMarkerItemActive { 
+    background-image: url("../img/button-marker-bg.png");
+    background-color: #FFD265;
+    background-size: 14px;
+    background-position: 6px 4px;
+}
+
+.olControlWMSToolbar .olControlRichNavigationMarkerItemInactive { 
+    background-image: url("../img/button-marker-bg.png");
+    background-size: 14px;
+    background-position: 6px 4px;
+}
+
+/*PAN PANEL CONTROL*/
+
+.olControlPanPanel {
+    top: 35px !important;
+}
+
+/* MOUSE POSITION CONTROL*/
+.olControlMousePosition {
+    border-radius: 3px;
+    -moz-border-radius: 3px;
+    -webkit-border-radius: 3px;
+    background-color: white;
+    border: 1px solid #809DCD;
+    color: #444444;
+    margin: 2px;
+    padding: 1px;
+}
+
+.olControlPanPanel div {    
+    height: 18px !important;
+    width: 18px !important;
+    cursor: pointer;
+    position: absolute;
+    margin-left: -5px !important;
+    margin-top: 10px;
+}
+
+.olControlPanPanel .olControlPanNorthItemInactive {
+    background-image:url("../img/pan-up.png");
+    top: 0px !important;
+    left: 14px !important;
+}
+
+.olControlPanPanel .olControlPanSouthItemInactive {
+    background-image:url("../img/pan-down.png");
+    top: 36px !important;
+    left: 14px !important;
+}
+
+.olControlPanPanel .olControlPanWestItemInactive {
+    position: absolute;
+    background-image:url("../img/pan-left.png");
+    top: 18px !important;
+    left: 0 !important;
+}
+
+.olControlPanPanel .olControlPanEastItemInactive {
+    background-image:url("../img/pan-right.png");
+    top: 18px !important;
+    left: 28px !important;    
+}
+
+select:focus{
+    box-shadow: 0 0 7px rgb(140, 200, 255);
+    border-color: rgb(0, 133, 255);
+}
+
+select {
+    background: white;
+    border: solid 1px rgba(0,0,0,0.2);
+    border-radius: 3px;
+    outline: none;
+}
+
+input[type="checkbox"] {
+    float: left;
+}
+
+.floatingText {
+    float: left;
+    margin-top: 3px;
+}
+
+
