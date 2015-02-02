@@ -29,8 +29,8 @@ OpenLayers.AdvancedMarker = OpenLayers.Class(OpenLayers.Marker, {
     initialize: function(id, image, markerManager, type, layer, map, lonlat, title, subtitle, onClick) {
         if (image != null){
             this.imageIcons = [
-                "img/marker-user.png",
-                "img/marker-event.png",
+                image,
+                image,
                 image,
                 image
             ];
