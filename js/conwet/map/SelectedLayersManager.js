@@ -340,24 +340,25 @@ conwet.map.SelectedLayersManager = Class.create({
                 this._saveState();
 
             if (isBaseLayer && (!init || last)) {
-                //this._zoomToExtent();
-                setTimeout(function() {
-
+                var callback = function(){
                     this._zoomToLayerExtent(layerObj.layerInfo);
                     //console.log(layerObj.layer.url);
                     setTimeout(function() {
                         if (last)
                             this.gadget.stopInit();
 
-                    }.bind(this), 1000);
-
-                }.bind(this), 100);
+                    }.bind(this), 100);  
+                }.bind(this);
+                if (!isGoogle)
+                    layerObj.layer.events.register("loadend", layerObj.layer, callback);
+                else
+                    google.maps.event.addListenerOnce(layerObj.layer.mapObject, "tilesloaded", callback);
             }
             else if (last) {
                 setTimeout(function() {
                     this.gadget.stopInit();
 
-                }.bind(this), 1000);
+                }.bind(this), 100);
             }
         }
         else {
