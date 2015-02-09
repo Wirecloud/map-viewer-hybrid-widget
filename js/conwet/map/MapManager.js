@@ -43,6 +43,8 @@ conwet.map.MapManager = Class.create({
         this.cursorManager.setMap(this.map);
         this.transformer.setMap(this.map);
 
+        this.geocoder = new google.maps.Geocoder();
+
         // Init
         this.isDrag = false;
         this.zoomLevel = 0;
@@ -414,5 +416,16 @@ conwet.map.MapManager = Class.create({
     },
     removeLayerFromWiring: function(id){
         this.owsManager.removeLayerFromWiring(id);
+    },
+    setLocation: function(address){
+        this.geocoder.geocode( { 'address': address}, function(results, status) {
+          if (status == google.maps.GeocoderStatus.OK) {
+            var location = results[0].geometry.location;
+            this.setCenter(location.D, location.k);            
+          } else {
+            alert("Geocode was not successful for the following reason: " + status);
+          }
+        }.bind(this));
     }
+    
 });
