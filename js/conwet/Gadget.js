@@ -311,7 +311,7 @@ conwet.Gadget = Class.create({
         this.mapManager.removeLayerFromWiring(id);
     },
     setZoom: function(zoom){
-        this.mapManager.setZoom(parseInt(zoom));
+        this.mapManager._setZoomLevel(parseInt(zoom));
     },
     setLocation: function(location){
         this.mapManager.setLocation(location);
