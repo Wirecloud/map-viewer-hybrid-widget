@@ -64,6 +64,11 @@ conwet.map.MapManager = Class.create({
         //this.map.addControl(new OpenLayers.Control.MyScale()); //ScaleLine
         this.map.addControl(new OpenLayers.Control.ScaleLine({geodesic: true})); //    
 
+        var nav = new OpenLayers.Control.Navigation(
+                    {mouseWheelOptions: {interval: 0}}
+        );
+
+        this.map.addControl(nav);
 
         // OWSManager
         var initialServers = [];
