@@ -417,11 +417,13 @@ conwet.map.MapManager = Class.create({
     removeLayerFromWiring: function(id){
         this.owsManager.removeLayerFromWiring(id);
     },
-    setLocation: function(address){
+    setLocation: function(address, zoom){
         this.geocoder.geocode( { 'address': address}, function(results, status) {
           if (status == google.maps.GeocoderStatus.OK) {
             var location = results[0].geometry.location;
-            this.setCenter(location.D, location.k);            
+            var center = {lon: location.D, lat: location.k};
+            zoom = (zoom/this.getNumZoomLevels());
+            this.setZoomCenter(zoom, center);            
           } else {
             alert("Geocode was not successful for the following reason: " + status);
           }

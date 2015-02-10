@@ -31,10 +31,10 @@ conwet.Gadget = Class.create({
     initialize: function() {
         this.init = true;        
 
-        MashupPlatform.prefs.registerCallback(function(){
-            this.setZoom(MashupPlatform.prefs.get("zoomPreference"));
-            this.setLocation(MashupPlatform.prefs.get("centerPreference"));
-        }.bind(this));
+        /*For testing
+        MashupPlatform.prefs.registerCallback(function(){            
+            this.setLocation(MashupPlatform.prefs.get("centerPreference"), MashupPlatform.prefs.get("zoomPreference"));
+        }.bind(this));*/
 
         this.visiblePoiListOutput = new conwet.events.Event('visiblePoiListOutput');
         this.featureInfoEvent = new conwet.events.Event('featureInfoOutput');
@@ -264,8 +264,7 @@ conwet.Gadget = Class.create({
         this.init = false;
         this.setInfoMarkers(this.pending_markers);
         this.pending_markers = [];
-        this.setZoom(MashupPlatform.prefs.get("zoomPreference"));
-        this.setLocation(MashupPlatform.prefs.get("centerPreference"));
+        this.setLocation(MashupPlatform.prefs.get("centerPreference"), MashupPlatform.prefs.get("initialZoom"));
     },
     reactingToWiring: function() {
         return this.reacting_to_wiring_event;
@@ -310,11 +309,8 @@ conwet.Gadget = Class.create({
     removeLayerFromWiring: function(id){
         this.mapManager.removeLayerFromWiring(id);
     },
-    setZoom: function(zoom){
-        this.mapManager._setZoomLevel(parseInt(zoom));
-    },
-    setLocation: function(location){
-        this.mapManager.setLocation(location);
+    setLocation: function(location, zoom){
+        this.mapManager.setLocation(location, zoom);
     }
 
 });

@@ -129,7 +129,7 @@ OpenLayers.AdvancedMarker = OpenLayers.Class(OpenLayers.Marker, {
     },
 
     centerInMap: function() {
-        this.map.setCenter(new OpenLayers.LonLat(this.lon, this.lat));
+        this.map.setCenter(new OpenLayers.LonLat(this.lon, this.lat), MashupPlatform.prefs.get("zoomPreference"));
     },
 
     getType: function() {
