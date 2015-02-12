@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer-hybrid" version="1.0.0a1">
+<widget xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="CoNWeT" name="map-viewer-hybrid" version="1.0.0a2">
     <details>
         <title>Map Viewer</title>
         <email>wirecloud@conwet.com</email>
         <image>img/wms_widget.png</image>
         <smartphoneimage>img/wms_widget.png</smartphoneimage>
         <homepage>https://github.com/Wirecloud/map-viewer-hybrid-widget</homepage>
-        <description>Place things on map! Explore the world, trace routes... [YaaST ti.map 3.0.12]</description>
+        <description>Place things on map! Explore the world, trace routes... [YaaST ti.map 3.0.15]</description>
         <doc>http://conwet.fi.upm.es/docs/display/wirecloud/Map+Viewer</doc>
         <authors>Alejandro Vera &lt;alejandro.vera@centeropenmiddleware.com&gt;, Borja Illescas &lt;billescas@conwet.com&gt;</authors>
         <contributors>Álvaro Arranz García &lt;aarranz@conwet.com&gt; Carlos Blanco &lt;&gt;</contributors>

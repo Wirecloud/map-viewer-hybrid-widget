@@ -586,8 +586,7 @@
 						_self.map.setLocation({
 							latitude: _point.latitude,
 							longitude: _point.longitude,
-							latitudeDelta: MapRegion.latitudeDelta,
-							longitudeDelta: MapRegion.longitudeDelta,
+							zoom: parseInt(MashupPlatform.prefs.get("zoomPreference")) - 1,
 							animate: true
 						});
 						
@@ -922,22 +921,11 @@
 		
 	};
 
-	
-	var initializeMap = function initializeMap(){
-		var mapCanvas = document.getElementById('map_canvas');
-
-		Map.createMap({
-			userLocation: true,
-	        animate: true,
-	        region: { //Spain
-	        	latitude: 39.47314162997572, 
-	        	longitude: -0.344953005422892, 
-	        	latitudeDelta: 0.4, 
-	        	longitudeDelta: 0.4 
-	    	}, 
-	        enableZoomControls: true,
-	        userLocationButton: true
-		}, function(_map){
+	var createMap = function createMap(creationArgs){
+		
+		Map.createMap(creationArgs, function(_map){
+			
+			var mapCanvas = document.getElementById('map_canvas');
 
 			_self.map = _map;
 			
@@ -981,21 +969,84 @@
 			console.log(' ++ actionsInitialStack ++' + JSON.stringify(actionsInitialStack));
 			for (inputCall in actionsInitialStack) {
 				if(inputCall == 'poiInput') {
-					console.log('Calling poiInputHandler with a list');
 					inputCallbacksHash[inputCall](actionsInitialStack[inputCall]);
 				} else {
 					for (i = 0; i < actionsInitialStack[inputCall]; i ++) {
-						console.log('Calling ' + inputCall + ' with data: ' + actionsInitialStack[inputCall][i]);
 						inputCallbacksHash[inputCall](actionsInitialStack[inputCall][i]);
 					}
 				}
 			}
 		});
+		
 	};
+	
+	var initializeMap = function initializeMap(){
+		
+		var creationArgs = {
+			userLocation: true,
+	        animate: true,
+	        region: { //latitude and longitude will be added later
+	        	zoom: parseInt(MashupPlatform.prefs.get("initialZoom")) - 1 //Zooms in google maps start from 0
+	    	}, 
+	        enableZoomControls: true,
+	        userLocationButton: true
+		};
+		
+		//Get the center. It can be coordinates or an address (which must be resolved with google)
+		var centerPreference = MashupPlatform.prefs.get("centerPreference").trim();
+		var splited = centerPreference.split(',');
+		var latitude = NaN;
+		var longitude = NaN;
+		
+		if (splited.length === 2){
+			latitude = parseFloat(splited[0]);
+			longitude = parseFloat(splited[1]);
+		}
+		
+		if(isNaN(latitude) || isNaN(longitude)) { //Get address with google service
+			
+			var url = "http://maps.googleapis.com/maps/api/geocode/json?address=" + centerPreference;
+			
+			MashupPlatform.http.makeRequest(url, {
+				method: 'GET',
+				onSuccess: function(response) {
+
+					var parsedResponse = JSON.parse(response.responseText);
+
+					if(parsedResponse.status == "OK") {
+						var location = parsedResponse.results[0].geometry.location;
+						
+						creationArgs.region.latitude = parseFloat(location.lat);
+						creationArgs.region.longitude = parseFloat(location.lng);
+
+					} else {
+						creationArgs.region.latitude = 0;
+						creationArgs.region.longitude = 0;
+					}
+					
+					createMap(creationArgs);
+					
+				},
+				onFailure: function() {
+					creationArgs.region.latitude = 0;
+					creationArgs.region.longitude = 0;
+			
+					createMap(creationArgs);
+				}
+			});
+			
+		} else { //Set the coordinates
+			creationArgs.region.latitude = latitude;
+			creationArgs.region.longitude = longitude;
+			
+			createMap(creationArgs);
+		}
+		
+	};
+	
 
 	var actionsInitialStack = {};
 	var stackHandler = function(type, data) {
-		console.log('stackHandler type ' + type + ' data: ' + data);
 		if (!actionsInitialStack[type]) {
 			actionsInitialStack[type] = [];
 		}
@@ -1035,6 +1086,7 @@
 		decodePolyline = null;
 		getRouteWidgetMap = null;
 		checkAnnotation = null;
+		createMap = null;
 		initializeMap = null;
 		handleAddLayer = null;
 		handleRemoveLayer = null;
