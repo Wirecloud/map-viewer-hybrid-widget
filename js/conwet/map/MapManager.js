@@ -426,7 +426,7 @@ conwet.map.MapManager = Class.create({
         this.geocoder.geocode( { 'address': address}, function(results, status) {
           if (status == google.maps.GeocoderStatus.OK) {
             var location = results[0].geometry.location;
-            var center = {lon: location.D, lat: location.k};
+            var center = {lon: location.lng(), lat: location.lat()};
             zoom = (zoom/this.getNumZoomLevels());
             this.setZoomCenter(zoom, center);            
           } else {
