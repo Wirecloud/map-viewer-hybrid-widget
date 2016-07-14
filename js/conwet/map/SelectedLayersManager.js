@@ -332,16 +332,19 @@ conwet.map.SelectedLayersManager = Class.create({
                 this.gadget.showMessage((isBaseLayer) ? _("New base layer added.") : _("New overlay layer added."));
 
             this._selectLayerObj(layerObj, isBaseLayer);
-            if (last && init) {
+            if (isBaseLayer && last && init) {
                 this._loadState();
-            }
+            }else if (isBaseLayer) {
+                this._zoomToExtent();
+                this._zoomToLayerExtent(layerObj.layerInfo);
+			}
 
             if (!init)
                 this._saveState();
 
             if (isBaseLayer && (!init || last)) {
                 var callback = function(){
-                    this._zoomToLayerExtent(layerObj.layerInfo);
+                    //this._zoomToLayerExtent(layerObj.layerInfo);
                     //console.log(layerObj.layer.url);
                     setTimeout(function() {
                         if (last)
