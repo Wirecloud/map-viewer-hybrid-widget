@@ -52,7 +52,7 @@
     box-shadow: 0 0 6px white;
 }
 .config_button {
-    display:none !important;
+    /* display:none !important; */
     border-radius: 14px;
     -moz-border-radius: 14px;
     -webkit-border-radius: 14px;
